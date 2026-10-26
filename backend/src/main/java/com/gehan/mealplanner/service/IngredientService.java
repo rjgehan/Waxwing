@@ -7,6 +7,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -31,6 +32,17 @@ public class IngredientService {
      * catching it and reading again. ON CONFLICT DO NOTHING instead waits for the other insert to
      * commit and then quietly makes nothing, so the read after it finds the one row either way.
      */
+    /** Every name a household's own recipes and grocery list use, each once. */
+    public List<String> namesUsedBy(UUID householdId) {
+        return ingredientRepository.namesUsedBy(householdId);
+    }
+
+    /** The ingredient by this name, if anybody has made it yet. Makes nothing. */
+    public Optional<Ingredient> find(String name) {
+        return name == null || name.isBlank() ? Optional.empty()
+                : ingredientRepository.findByNormalizedName(normalize(name));
+    }
+
     public Ingredient findOrCreate(String name, String defaultUnit) {
         String normalized = normalize(name);
         Optional<Ingredient> known = ingredientRepository.findByNormalizedName(normalized);

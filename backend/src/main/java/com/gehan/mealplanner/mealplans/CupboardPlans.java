@@ -289,7 +289,8 @@ public class CupboardPlans {
                     boolean past = i.soon().past(today);
                     return new Stocked(i.item().getIngredient().getId(), i.name(), IngredientKeys.key(i.name()),
                             i.soon().soon() && !past, !past && useFirst.contains(i.item().getIngredient().getId()),
-                            i.soon().by(), i.soon().reason() == UseSoon.Reason.DATE);
+                            i.soon().by(), i.soon().reason() == UseSoon.Reason.DATE,
+                            i.item().getAlsoKnownAs().stream().map(IngredientKeys::key).toList());
                 })
                 .toList();
         List<RecipePool.PoolRecipe> recipes = pool.forHousehold(householdId, !onlyMine);

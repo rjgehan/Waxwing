@@ -496,6 +496,22 @@ which is what the iPhone waits for before it shows the door, so an iPhone ahead 
 shows none; an older iPhone build keeps working and just doesn't have the new pieces until it is
 updated. Plans saved before a kitchen changed keep their meals.
 
+## Other names for cupboard items, and garlic on the list (nothing to do)
+
+A cupboard item can have **Also known as** names — "sea salt" and "salt and pepper" for the
+household's salt — set on its sheet, where names from the household's own recipes and list are
+offered (`GET …/cupboard/{itemId}/other-names`). A recipe line by any of them counts as that item:
+a staple stays off the list whatever the recipe calls it, the list flags it as at home, and Done
+shopping puts it back on that item rather than making a second one. Names match as written, give
+or take capitals, punctuation and a plural, so a staple "pepper" never swallows "red pepper".
+
+The list also puts garlic on one row however a recipe writes it: "5 garlic cloves, minced" and
+"1 tbsp minced garlic" are 8 cloves of garlic (a teaspoon minced is a clove). Recipes keep their
+own words. Garlic powder, garlic salt and garlic bread are left alone.
+
+Hibernate adds the `cupboard_item_aliases` table on start; nothing to run. An older phone neither
+sees nor sends the names, and keeps every one somebody set elsewhere.
+
 ## Things worth knowing
 
 - **The schema updates itself.** `ddl-auto: update` means Hibernate adds new tables and

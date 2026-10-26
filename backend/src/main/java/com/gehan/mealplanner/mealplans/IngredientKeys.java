@@ -58,7 +58,7 @@ public final class IngredientKeys {
         return String.join(" ", words);
     }
 
-    static String singular(String word) {
+    public static String singular(String word) {
         if (word.length() <= 3) return word;
         if (word.endsWith("ies")) return word.substring(0, word.length() - 3) + "y";
         if (word.endsWith("oes")) return word.substring(0, word.length() - 2);

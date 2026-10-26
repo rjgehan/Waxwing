@@ -28,9 +28,13 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.format.DateTimeParseException;
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
@@ -96,10 +100,12 @@ public class CupboardService {
     @Transactional
     public CupboardItemResponse add(UUID householdId, UUID requesterId, AddCupboardItemRequest request) {
         Household household = requireMember(householdId, requesterId);
-        Ingredient ingredient = ingredientService.findOrCreate(request.name(), null);
+        Ingredient named = ingredientService.findOrCreate(request.name(), null);
 
-        CupboardItem item = cupboardRepository.findByHouseholdIdAndIngredientId(householdId, ingredient.getId())
-                .orElseGet(() -> CupboardItem.builder().household(household).ingredient(ingredient).build());
+        // By any name it goes by: adding "sea salt" says you have the salt that is also called that.
+        CupboardItem item = CupboardMatch.of(cupboardRepository.findByHouseholdId(householdId)).find(named)
+                .orElseGet(() -> CupboardItem.builder().household(household).ingredient(named).build());
+        Ingredient ingredient = item.getIngredient();
         item.setRunningLow(false);
         if (Boolean.TRUE.equals(request.staple())) {
             item.setStaple(true);
@@ -135,7 +141,12 @@ public class CupboardService {
                     if (request.useBy() != null) {
                         kept.setUseBy(parseUseBy(request.useBy()));
                     }
+                    // And everything either was called, bar the name it is now.
+                    List<String> names = new ArrayList<>(kept.getAlsoKnownAs());
+                    names.addAll(request.alsoKnownAs() != null ? request.alsoKnownAs() : item.getAlsoKnownAs());
                     cupboardRepository.delete(item);
+                    cupboardRepository.flush();
+                    kept.setAlsoKnownAs(otherNames(householdId, kept, names));
                     return toResponse(cupboardRepository.save(kept), householdId);
                 }
                 item.setIngredient(renamed);
@@ -149,6 +160,9 @@ public class CupboardService {
         }
         if (request.useBy() != null) {
             item.setUseBy(parseUseBy(request.useBy()));
+        }
+        if (request.alsoKnownAs() != null) {
+            item.setAlsoKnownAs(otherNames(householdId, item, request.alsoKnownAs()));
         }
         if (Boolean.FALSE.equals(request.trackQuantity())) {
             item.setQuantity(null);
@@ -306,6 +320,7 @@ public class CupboardService {
                     .runningLow(theirs.isRunningLow())
                     .quantity(theirs.getQuantity())
                     .unit(theirs.getUnit())
+                    .alsoKnownAs(new LinkedHashSet<>(theirs.getAlsoKnownAs()))
                     .build());
             copied++;
 
@@ -357,6 +372,58 @@ public class CupboardService {
                 .collect(Collectors.toSet());
     }
 
+    /**
+     * Names this item might also go by, for "Also known as" to offer: the names the household's
+     * own recipes and grocery list use that have the item's whole name in them — "sea salt" and
+     * "salt and pepper" for salt, never "salted butter" — and that no item here answers to yet.
+     * Only ever a suggestion: nothing is added until somebody picks it.
+     */
+    @Transactional(readOnly = true)
+    public List<String> otherNameSuggestions(UUID householdId, UUID itemId, UUID requesterId) {
+        householdService.assertMember(householdId, requesterId);
+        CupboardItem item = findItem(householdId, itemId);
+        String own = " " + CupboardMatch.spelling(item.getIngredient().getName()) + " ";
+        Set<String> taken = cupboardRepository.findByHouseholdId(householdId).stream()
+                .flatMap(c -> CupboardMatch.spellings(c).stream())
+                .collect(Collectors.toSet());
+        Map<String, String> found = new LinkedHashMap<>();
+        for (String name : ingredientService.namesUsedBy(householdId)) {
+            String spelling = CupboardMatch.spelling(name);
+            if (!spelling.isEmpty() && !taken.contains(spelling) && (" " + spelling + " ").contains(own)) {
+                found.putIfAbsent(spelling, name.trim().toLowerCase(Locale.ROOT));
+            }
+        }
+        return found.values().stream().sorted().limit(20).toList();
+    }
+
+    /**
+     * The other names to keep: trimmed, each once whatever its capitals, and not the item's own
+     * name. A name another item here is called is refused — that is two things, and one of them
+     * would quietly stop matching.
+     */
+    private Set<String> otherNames(UUID householdId, CupboardItem item, List<String> names) {
+        String own = CupboardMatch.spelling(item.getIngredient().getName());
+        Map<String, CupboardItem> others = new LinkedHashMap<>();
+        cupboardRepository.findByHouseholdId(householdId).stream()
+                .filter(c -> !c.getId().equals(item.getId()))
+                .forEach(c -> others.putIfAbsent(CupboardMatch.spelling(c.getIngredient().getName()), c));
+        Map<String, String> kept = new LinkedHashMap<>();
+        for (String name : names) {
+            String said = name == null ? "" : name.trim().replaceAll("\\s+", " ");
+            String spelling = CupboardMatch.spelling(said);
+            if (spelling.isEmpty() || spelling.equals(own)) {
+                continue;
+            }
+            CupboardItem clash = others.get(spelling);
+            if (clash != null) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                        "\"" + clash.getIngredient().getName() + "\" is its own item in the cupboard.");
+            }
+            kept.putIfAbsent(spelling, said);
+        }
+        return new LinkedHashSet<>(kept.values());
+    }
+
     private CupboardItem findItem(UUID householdId, UUID itemId) {
         CupboardItem item = cupboardRepository.findById(itemId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Not in the cupboard"));
@@ -403,7 +470,8 @@ public class CupboardService {
                 item.getUseBy(),
                 soon.soon(),
                 soon.soon() && soon.reason() == UseSoon.Reason.GUESS,
-                soon.label());
+                soon.label(),
+                item.getAlsoKnownAs().stream().sorted(String.CASE_INSENSITIVE_ORDER).toList());
     }
 
     /**

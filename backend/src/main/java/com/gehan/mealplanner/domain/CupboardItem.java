@@ -6,10 +6,13 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.BatchSize;
 
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.LinkedHashSet;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -49,6 +52,20 @@ public class CupboardItem {
     @Column(nullable = false)
     @Builder.Default
     private boolean staple = false;
+
+    /**
+     * Other names recipes give the same thing — "sea salt", "salt and pepper" for the household's
+     * salt. A recipe line or list row by any of them counts as this item: a staple is left off the
+     * list whatever the recipe calls it, and Done shopping puts it back here rather than making a
+     * second item. Matched as written, give or take capitals, punctuation and a plural (see
+     * {@code CupboardMatch}). Batched, so a whole cupboard's names come in a query or two.
+     */
+    @ElementCollection
+    @CollectionTable(name = "cupboard_item_aliases", joinColumns = @JoinColumn(name = "cupboard_item_id"))
+    @Column(name = "alias", nullable = false, length = 200)
+    @BatchSize(size = 200)
+    @Builder.Default
+    private Set<String> alsoKnownAs = new LinkedHashSet<>();
 
     /**
      * Some left, but not much — a note for whoever checks, and nothing more. It does not put

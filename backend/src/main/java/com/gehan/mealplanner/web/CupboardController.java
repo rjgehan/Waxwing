@@ -62,6 +62,14 @@ public class CupboardController {
         return cupboardService.copyFrom(householdId, sourceHouseholdId, userId);
     }
 
+    /** Names the item might also go by, from the household's own recipes and list, for "Also known as". */
+    @GetMapping("/{itemId}/other-names")
+    public List<String> otherNames(@AuthenticationPrincipal UUID userId,
+                                   @PathVariable UUID householdId,
+                                   @PathVariable UUID itemId) {
+        return cupboardService.otherNameSuggestions(householdId, itemId, userId);
+    }
+
     @PatchMapping("/{itemId}")
     public CupboardItemResponse update(@AuthenticationPrincipal UUID userId,
                                        @PathVariable UUID householdId,

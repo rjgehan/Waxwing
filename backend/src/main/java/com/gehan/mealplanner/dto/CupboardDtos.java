@@ -27,17 +27,27 @@ public class CupboardDtos {
      * `useBy` is "2026-10-08" to set the date on the packet, "" to clear it, and null (or left
      * out) to leave it alone — text rather than a date because JSON has no other way to tell
      * "clear it" from "not mentioned".
+     *
+     * `alsoKnownAs` is every other name the item goes by, all of them — ["sea salt", "salt and
+     * pepper"] — replacing what it had; [] clears them, and null leaves them alone.
      */
     public record UpdateCupboardItemRequest(
             Boolean runningLow, Boolean staple, @Size(max = 200) String name,
             Boolean trackQuantity, @PositiveOrZero BigDecimal quantity, @Size(max = 40) String unit,
             @Pattern(regexp = "^$|^\\d{4}-\\d{2}-\\d{2}$", message = "useBy is a date like 2026-10-08, or empty to clear it")
-            String useBy) {
+            String useBy,
+            @Size(max = 30, message = "Thirty other names at most") List<@Size(max = 200) String> alsoKnownAs) {
 
         /** Everything from before use-by dates, which is what older phones still send. */
         public UpdateCupboardItemRequest(Boolean runningLow, Boolean staple, String name,
                                          Boolean trackQuantity, BigDecimal quantity, String unit) {
-            this(runningLow, staple, name, trackQuantity, quantity, unit, null);
+            this(runningLow, staple, name, trackQuantity, quantity, unit, null, null);
+        }
+
+        /** Everything from before other names. */
+        public UpdateCupboardItemRequest(Boolean runningLow, Boolean staple, String name,
+                                         Boolean trackQuantity, BigDecimal quantity, String unit, String useBy) {
+            this(runningLow, staple, name, trackQuantity, quantity, unit, useBy, null);
         }
     }
 
@@ -66,7 +76,9 @@ public class CupboardDtos {
             /** The soon is a guess from what it is and when it was bought, not a date. */
             boolean useSoonGuess,
             /** Words for a chip: "by Thu", "today", "past its date", "soon". Null when not soon and no date. */
-            String useSoonLabel) {
+            String useSoonLabel,
+            /** Other names recipes give it — "sea salt" for salt — A to Z. Empty when none. */
+            List<String> alsoKnownAs) {
     }
 
     /** One of the starter list's groups — "Baking", "Spices" — in the order to show them. */

@@ -58,13 +58,19 @@ public final class CupboardPlanner {
     /**
      * Something in the cupboard. {@code priority}: ticked under "use these up first".
      *
-     * @param by    the day to use it by, typed in or guessed; null when it keeps
-     * @param dated {@code by} is the date on the packet, not a guess
+     * @param by        the day to use it by, typed in or guessed; null when it keeps
+     * @param dated     {@code by} is the date on the packet, not a guess
+     * @param otherKeys the keys of the names the cupboard also knows it by ("sea salt" for salt)
      */
     public record Stocked(UUID ingredientId, String name, String key, boolean useSoon, boolean priority,
-                          LocalDate by, boolean dated) {
+                          LocalDate by, boolean dated, List<String> otherKeys) {
         public Stocked(UUID ingredientId, String name, String key, boolean useSoon, boolean priority) {
             this(ingredientId, name, key, useSoon, priority, null, false);
+        }
+
+        public Stocked(UUID ingredientId, String name, String key, boolean useSoon, boolean priority,
+                       LocalDate by, boolean dated) {
+            this(ingredientId, name, key, useSoon, priority, by, dated, List.of());
         }
 
         /** Still good on that day: no date, or the day is on or before it. */
@@ -136,6 +142,12 @@ public final class CupboardPlanner {
         for (Stocked s : stock) {
             if (s.ingredientId() != null) byId.putIfAbsent(s.ingredientId(), s);
             if (!s.key().isEmpty()) byKey.putIfAbsent(s.key(), s);
+        }
+        // Other names after every item's own, so an item called "salt" wins over another's alias.
+        for (Stocked s : stock) {
+            for (String other : s.otherKeys()) {
+                if (!other.isEmpty()) byKey.putIfAbsent(other, s);
+            }
         }
         // Sorted by name, so equal scores always come out the same way round.
         this.dishes = dishes.stream().sorted(Comparator.comparing(Dish::name, String.CASE_INSENSITIVE_ORDER)

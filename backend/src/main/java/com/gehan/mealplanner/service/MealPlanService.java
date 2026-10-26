@@ -60,7 +60,7 @@ public class MealPlanService {
     @Transactional(readOnly = true)
     public List<MealPlanEntryResponse> listRange(UUID householdId, UUID requesterId, LocalDate start, LocalDate end) {
         householdService.assertMember(householdId, requesterId);
-        Map<UUID, CupboardItem> cupboard = cupboard(householdId);
+        CupboardMatch cupboard = cupboard(householdId);
         return mealPlanEntryRepository
                 .findByHouseholdIdAndDateBetweenOrderByDateAscMealTypeAsc(householdId, start, end)
                 .stream().sorted(MealPlanEntry.EATING_ORDER).map(e -> toResponse(e, cupboard)).toList();
@@ -209,23 +209,20 @@ public class MealPlanService {
      * for a household that does not keep one: the rows it kept from when it did are out of sight,
      * and an old "running low" would be a warning about a shelf nobody looks at any more.
      */
-    private Map<UUID, CupboardItem> cupboard(UUID householdId) {
-        Map<UUID, CupboardItem> cupboard = new HashMap<>();
-        if (householdRepository.findById(householdId).map(Household::isCupboardEnabled).orElse(true)) {
-            cupboardRepository.findByHouseholdId(householdId).forEach(c -> cupboard.put(c.getIngredient().getId(), c));
-        }
-        return cupboard;
+    private CupboardMatch cupboard(UUID householdId) {
+        return householdRepository.findById(householdId).map(Household::isCupboardEnabled).orElse(true)
+                ? CupboardMatch.of(cupboardRepository.findByHouseholdId(householdId)) : CupboardMatch.none();
     }
 
     private static String blankToNull(String value) {
         return value == null || value.isBlank() ? null : value.trim();
     }
 
-    private MealPlanEntryResponse toResponse(MealPlanEntry entry, Map<UUID, CupboardItem> cupboard) {
+    private MealPlanEntryResponse toResponse(MealPlanEntry entry, CupboardMatch cupboard) {
         Recipe recipe = entry.getRecipe();
         Ingredient item = entry.getItem();
         SavedLink link = entry.getSavedLink();
-        CupboardItem stocked = item == null ? null : cupboard.get(item.getId());
+        CupboardItem stocked = cupboard.find(item).orElse(null);
         return new MealPlanEntryResponse(
                 entry.getId(),
                 entry.getDate(),

@@ -102,7 +102,7 @@ public class GroceryListService {
      * per request instead of once per item.
      */
     private record Context(Map<UUID, GroceryCategory> sections, List<GroceryCategory> categories,
-                            boolean keepsCupboard, Map<UUID, CupboardItem> cupboard,
+                            boolean keepsCupboard, CupboardMatch cupboard,
                             Map<UUID, String> mealRecipes, Map<UUID, String> addedRecipes,
                             Map<UUID, LastPrice> lastPrices) {
 
@@ -124,15 +124,14 @@ public class GroceryListService {
             return new Context(sections, categories, keepsCupboard, cupboard, mealRecipes, names, lastPrices);
         }
 
+        /** Always in the house, by its own name or one the cupboard knows it by. */
         boolean isStaple(Ingredient ingredient) {
-            CupboardItem item = cupboard.get(ingredient.getId());
-            return item != null && item.isStaple();
+            return cupboard.find(ingredient).map(CupboardItem::isStaple).orElse(false);
         }
 
         /** Enough to count on: in the cupboard, not running low, and not counted down to zero. */
         boolean has(Ingredient ingredient) {
-            CupboardItem item = cupboard.get(ingredient.getId());
-            return item != null && !item.isShort();
+            return cupboard.find(ingredient).map(item -> !item.isShort()).orElse(false);
         }
     }
 
@@ -145,10 +144,8 @@ public class GroceryListService {
      */
     private Context context(UUID householdId) {
         boolean keepsCupboard = keepsCupboard(householdId);
-        Map<UUID, CupboardItem> cupboard = new HashMap<>();
-        if (keepsCupboard) {
-            cupboardRepository.findByHouseholdId(householdId).forEach(c -> cupboard.put(c.getIngredient().getId(), c));
-        }
+        CupboardMatch cupboard = keepsCupboard ? CupboardMatch.of(cupboardRepository.findByHouseholdId(householdId))
+                : CupboardMatch.none();
         Map<UUID, String> mealRecipes = new HashMap<>();
         mealPlanEntryRepository.recipeNamesOnList(householdId)
                 .forEach(row -> mealRecipes.put((UUID) row[0], (String) row[1]));
@@ -406,20 +403,22 @@ public class GroceryListService {
     public void putAway(UUID householdId, UUID requesterId, PutAwayRequest request) {
         householdService.assertMember(householdId, requesterId);
         Household household = locked(householdId);
+        CupboardMatch shelf = household.isCupboardEnabled()
+                ? CupboardMatch.of(cupboardRepository.findByHouseholdId(householdId)) : CupboardMatch.none();
         if (request.leaveOut() != null) {
-            request.leaveOut().forEach(id -> takeOff(householdId, id, null));
+            request.leaveOut().forEach(id -> takeOff(householdId, id, null, shelf));
         }
         if (request.putAway() != null) {
-            request.putAway().forEach(id -> takeOff(householdId, id, household));
+            request.putAway().forEach(id -> takeOff(householdId, id, household, shelf));
         }
     }
 
-    private void takeOff(UUID householdId, UUID itemId, Household boughtFor) {
+    private void takeOff(UUID householdId, UUID itemId, Household boughtFor, CupboardMatch shelf) {
         groceryListItemRepository.findById(itemId)
                 .filter(item -> item.getHousehold().getId().equals(householdId))
                 .ifPresent(item -> {
                     if (boughtFor != null && item.getIngredient() != null) {
-                        bought(boughtFor, item);
+                        bought(boughtFor, item, shelf);
                     }
                     groceryListItemRepository.delete(item);
                     eventPublisher.itemRemoved(householdId, itemId);
@@ -432,9 +431,9 @@ public class GroceryListService {
      * or not anybody keeps track of the jar. Only here, and not for what was left out as someone
      * else's: that was bought, but not for this house.
      */
-    private void bought(Household household, GroceryListItem item) {
+    private void bought(Household household, GroceryListItem item, CupboardMatch shelf) {
         if (household.isCupboardEnabled()) {
-            stock(household, item);
+            stock(household, item, shelf);
         } else {
             restockClock.bought(household.getId(), item.getIngredient().getId());
         }
@@ -446,11 +445,17 @@ public class GroceryListService {
      * chicken and 2 lb bought is 3 lb. Bought without an amount, or in a unit the count is not
      * kept in, the count stays as it was: a guess would be a number nobody can trust, and the
      * cupboard's − and + are there to put it right. Its restock reminder starts over too.
+     *
+     * Bought by another name the cupboard knows — "sea salt" for the household's salt — it goes
+     * back on that item rather than becoming a second one. The fallback lookup finds an item this
+     * same Done shopping has just made, which the shelf read before it started cannot know.
      */
-    private void stock(Household household, GroceryListItem bought) {
-        Ingredient ingredient = bought.getIngredient();
-        CupboardItem item = cupboardRepository.findByHouseholdIdAndIngredientId(household.getId(), ingredient.getId())
-                .orElseGet(() -> CupboardItem.builder().household(household).ingredient(ingredient).build());
+    private void stock(Household household, GroceryListItem bought, CupboardMatch shelf) {
+        Ingredient boughtAs = bought.getIngredient();
+        CupboardItem item = shelf.find(boughtAs)
+                .or(() -> cupboardRepository.findByHouseholdIdAndIngredientId(household.getId(), boughtAs.getId()))
+                .orElseGet(() -> CupboardItem.builder().household(household).ingredient(boughtAs).build());
+        Ingredient ingredient = item.getIngredient();
         item.setRunningLow(false);
         item.arrived(restockClock.now(), LocalDate.ofInstant(restockClock.now(), java.time.ZoneId.systemDefault()));
         if (item.getQuantity() != null && bought.getQuantity() != null
@@ -530,7 +535,7 @@ public class GroceryListService {
         User by = userRepository.findById(requesterId).orElse(null);
 
         Set<GroceryListItem> touched = new LinkedHashSet<>();
-        for (Need need : needs(recipe, servings, optionals, ctx).values()) {
+        for (Need need : needs(recipe, servings, optionals, ctx, true).values()) {
             // No amount, or an amount of nothing, is asked for as some: no number, not "0 salt".
             BigDecimal quantity = need.quantity().signum() > 0 ? need.quantity() : null;
             GroceryListItem row = addTo(household, need.ingredient(), quantity, need.unit(), null);
@@ -614,7 +619,7 @@ public class GroceryListService {
 
         Map<UnitKey, Need> needs = needs(entry.getRecipe(),
                 entry.getServings() != null ? entry.getServings() : household.getDefaultServings(),
-                entry.getIncludedOptionalIngredientIds(), ctx);
+                entry.getIncludedOptionalIngredientIds(), ctx, false);
         Map<UnitKey, BigDecimal> already = remembered(entry);
         // The same test addRecipe makes: anything new, or more of it than was added before.
         List<Need> toAdd = needs.values().stream()
@@ -734,7 +739,7 @@ public class GroceryListService {
         }
         Map<UnitKey, Need> needs = entry.getRecipe() == null ? Map.of() : needs(entry.getRecipe(),
                 entry.getServings() != null ? entry.getServings() : household.getDefaultServings(),
-                entry.getIncludedOptionalIngredientIds(), ctx);
+                entry.getIncludedOptionalIngredientIds(), ctx, true);
 
         Map<UnitKey, BigDecimal> before = new HashMap<>(already);
         Map<UnitKey, BigDecimal> added = new HashMap<>();
@@ -794,7 +799,7 @@ public class GroceryListService {
      * planned rather than asked again here — or, for a recipe added from its page, if that did.
      */
     private Map<UnitKey, Need> needs(Recipe recipe, int wantedServings, Set<UUID> includedOptionalIngredientIds,
-                                     Context ctx) {
+                                     Context ctx, boolean writing) {
         BigDecimal factor = BigDecimal.valueOf(wantedServings)
                 .divide(BigDecimal.valueOf(recipe.getServings()), 4, RoundingMode.HALF_UP);
 
@@ -802,15 +807,27 @@ public class GroceryListService {
         recipe.getIngredients().stream()
                 .filter(ri -> !ctx.isStaple(ri.getIngredient()))
                 .filter(ri -> !ri.isOptional() || includedOptionalIngredientIds.contains(ri.getId()))
-                .forEach(ri -> {
-                    BigDecimal quantity = ri.getQuantity() == null ? BigDecimal.ZERO : ri.getQuantity().multiply(factor);
-                    Need need = new Need(ri.getIngredient(), blankToNull(ri.getUnit()), quantity);
-                    needs.merge(need.key(), need,
-                            (a, b) -> new Need(a.ingredient(), a.unit(), a.quantity().add(b.quantity())));
-                });
+                .map(ri -> toBuy(new Need(ri.getIngredient(), blankToNull(ri.getUnit()),
+                        ri.getQuantity() == null ? BigDecimal.ZERO : ri.getQuantity().multiply(factor)), writing))
+                .filter(need -> !ctx.isStaple(need.ingredient()))
+                .forEach(need -> needs.merge(need.key(), need,
+                        (a, b) -> new Need(a.ingredient(), a.unit(), a.quantity().add(b.quantity()))));
         needs.replaceAll((key, need) ->
                 new Need(need.ingredient(), need.unit(), need.quantity().setScale(2, RoundingMode.HALF_UP)));
         return needs;
+    }
+
+    /**
+     * A recipe's line as the thing to buy ({@link ShoppingForms}): "1 tbsp minced garlic" as 3
+     * cloves of garlic. Reading only — the Plan asking where a meal stands — never makes an
+     * ingredient, and if "garlic" has not been made yet the line is left as written.
+     */
+    private Need toBuy(Need need, boolean writing) {
+        return ShoppingForms.of(need.ingredient().getName(), need.unit())
+                .flatMap(form -> (writing ? Optional.of(ingredientService.findOrCreate(form.name(), form.unit()))
+                        : ingredientService.find(form.name()))
+                        .map(ingredient -> new Need(ingredient, form.unit(), need.quantity().multiply(form.factor()))))
+                .orElse(need);
     }
 
     /** Puts more of something on the list for this meal, on the row already waiting for it if there is one. */
