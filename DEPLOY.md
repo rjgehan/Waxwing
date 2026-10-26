@@ -44,7 +44,29 @@ $EDITOR .env          # set JWT_SECRET and DB_PASSWORD at minimum
 
 `deploy.sh` pulls, starts, and waits for `/actuator/health` before reporting success.
 
-The app is then at `http://<server>` — and that is the only port it needs.
+The app is then at `http://<server>` on the local network — and that is the only port it needs.
+
+### 4. Publish it with a Cloudflare Tunnel
+
+The public site (meals.gehan.cloud) comes through a Cloudflare Tunnel: `cloudflared` runs in
+the compose stack, dials out to Cloudflare, and traffic comes back down that connection — no
+router port is opened, and it survives CGNAT and a changing home IP.
+
+1. In the Cloudflare dashboard, create a tunnel (Zero Trust → Networks → Tunnels) and copy its
+   token into `.env` as `CF_TUNNEL_TOKEN`.
+2. Give the tunnel's public hostname three routes, **in this order** (the first match wins):
+
+   | Path | Service |
+   | --- | --- |
+   | `/api` and everything under it | `http://backend:8080` |
+   | `/ws` and everything under it | `http://backend:8080` |
+   | everything else | `http://frontend:80` |
+
+   `cloudflared` is on the `mealplanner` network, so it reaches both containers by name.
+3. Start it — the tunnel is opt-in, and `./deploy.sh` alone does not start it:
+   ```bash
+   docker compose -f docker-compose.prod.yml --profile tunnel up -d
+   ```
 
 ## Deploying again
 
@@ -56,15 +78,28 @@ git pull            # only needed if compose/env changed
 `IMAGE_TAG=latest` picks up whatever Actions built most recently. To roll back, set
 `IMAGE_TAG` in `.env` to a specific commit SHA and re-run `./deploy.sh`.
 
-## One port, no API URL to configure
+## How a request reaches the backend
 
-The frontend's nginx proxies `/api` and `/ws` to the backend over the compose network, so the
-browser only ever talks to one origin. Consequences worth knowing:
+The browser and the iPhone app only ever talk to one origin, and `/api` and `/ws` are paths on
+it. Who splits the paths depends on how you came in:
 
-- **Only `WEB_PORT` is published.** The backend has no host port at all.
+- **The public hostname:** Cloudflare does it. The tunnel's routes send `/api` and `/ws` straight
+  to `backend:8080` and everything else to `frontend:80`, whose nginx just serves the built web
+  app. nginx is not in the path of an API call.
+- **The local network** (`http://<server>:<WEB_PORT>`, or over Tailscale): the frontend's nginx
+  does it, proxying `/api` and `/ws` to the backend over the compose network.
+
+The same paths work either way. Consequences worth knowing:
+
+- **Only `WEB_PORT` is published.** The backend has no host port at all; the tunnel reaches it
+  by name on the compose network.
 - **Nothing is baked into the bundle**, so the app works from `localhost`, a LAN IP, a
   hostname or a domain without rebuilding.
 - **No CORS involved**, since the API is same-origin.
+- **Upload limits:** the backend caps a request at 5 MB. On the public route nginx's own body
+  limit (8 MB) no longer applies; Cloudflare's is far higher.
+- **WebSockets** (the live grocery list) go through the tunnel with no extra setting; SockJS
+  falls back to long-polling if a socket can't open.
 
 `VITE_API_URL` stays unset unless the API genuinely lives on another origin.
 

@@ -48,8 +48,9 @@ Two options, both fine:
 | Over Tailscale | `http://<tailscale-name>:8090` | Stays on the tailnet. Preferred. |
 | Public | `https://meals.gehan.cloud` | Goes out through Cloudflare and back. Works anywhere. |
 
-Port `8090` is the frontend's nginx, which proxies `/api` to the backend — so the same paths
-work either way. If both machines are on the tailnet, use that: fewer hops, and the key never
+On the public hostname, Cloudflare's tunnel sends `/api` straight to the backend. Port `8090`
+is the frontend container on the server, whose nginx proxies `/api` to the backend for local
+access — so the same paths work either way. If both machines are on the tailnet, use that: fewer hops, and the key never
 leaves the private network.
 
 ## Endpoints

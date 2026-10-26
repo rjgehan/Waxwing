@@ -1,6 +1,7 @@
-# React Router is client-side, and the API is reached through this same server on /api —
-# so the browser only ever talks to one origin and one port. No CORS, and no API URL baked
-# into the bundle at build time.
+# React Router is client-side, and the API is reached on /api of the same origin — so the
+# browser only ever talks to one origin and one port. No CORS, and no API URL baked into the
+# bundle at build time. On the public hostname Cloudflare's tunnel sends /api and /ws straight
+# to the backend; the proxying below is for the local network (WEB_PORT, Tailscale).
 
 # WebSocket upgrades need this mapping; conf.d files are included inside `http`, so a `map`
 # at the top of the file is in the right place.
