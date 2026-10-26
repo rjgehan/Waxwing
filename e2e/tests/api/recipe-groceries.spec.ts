@@ -173,3 +173,24 @@ test('with a cupboard, "always have" staples stay off and what is at home is fla
   expect(all.map((i: any) => i.name).sort()).toEqual(['eggs', 'rice', 'salt']);
   expect(all.every((i: any) => i.inCupboard === false)).toBe(true);
 });
+
+test('a staple stays off by any name the cupboard also knows it by, and garlic written two ways is one row in cloves', async () => {
+  const hh = await newHousehold();
+  const { token } = await admin();
+  const salt = await call('POST', `/api/households/${hh.id}/cupboard`, { token, body: { name: 'salt', staple: true } });
+  await call('PATCH', `/api/households/${hh.id}/cupboard/${salt.id}`, {
+    token, body: { alsoKnownAs: ['sea salt', 'salt and pepper'] },
+  });
+  const pasta = await newRecipe(hh.id, 'Garlic pasta', [
+    { name: 'sea salt', qty: 1, unit: 'tsp' },
+    { name: 'salt and pepper' },
+    { name: 'minced garlic', qty: 1, unit: 'tbsp' },
+    { name: 'garlic cloves, minced', qty: 5 },
+    { name: 'spaghetti', qty: 400, unit: 'g' },
+  ]);
+
+  const added = await call('POST', path(hh.id, pasta.id), { token, body: {} });
+
+  expect(added.map((i: any) => i.name.toLowerCase()).sort()).toEqual(['garlic', 'spaghetti']);
+  expect(find(added, 'garlic')).toMatchObject({ quantity: 8, unit: 'clove' });
+});

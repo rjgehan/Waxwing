@@ -647,6 +647,61 @@ class GroceryListDatabaseTest {
         assertThat(find("tofu").inCupboard()).isFalse();
     }
 
+    // --- Other names, and garlic ---
+
+    @Test
+    void aStapleIsLeftOffByAnyNameTheCupboardKnowsItBy() {
+        CupboardItemResponse salt = cupboardService.add(home, me.getId(), new AddCupboardItemRequest("salt-" + tag, true));
+        cupboardService.update(home, salt.id(), me.getId(), new UpdateCupboardItemRequest(null, null, null, null,
+                null, null, null, List.of("Sea Salt-" + tag, "salt and pepper-" + tag)));
+        RecipeResponse soup = recipe("Soup", 2, some("sea salt"), some("salt and pepper"), some("kosher salt"),
+                need("leek", "2", null));
+        RecipeResponse stew = recipe("Stew", 2, need("sea salt", "1", "tsp"), need("carrot", "3", null));
+
+        addRecipe(soup, null, null, false);
+        plan(stew, MONDAY, 2);
+        addWeek();
+
+        assertThat(list()).extracting(GroceryListItemResponse::name)
+                .containsExactlyInAnyOrder("kosher salt-" + tag, "leek-" + tag, "carrot-" + tag);
+    }
+
+    @Test
+    void doneShoppingPutsAThingBoughtByAnotherNameBackOnThatItem() {
+        CupboardItemResponse salt = cupboardService.add(home, me.getId(), new AddCupboardItemRequest("salt-" + tag, null));
+        cupboardService.update(home, salt.id(), me.getId(), new UpdateCupboardItemRequest(true, null, null, null,
+                null, null, null, List.of("sea salt-" + tag)));
+        GroceryListItemResponse bought = add("sea salt", null, null);
+
+        groceryListService.putAway(home, me.getId(), new PutAwayRequest(List.of(bought.id()), List.of()));
+
+        assertThat(cupboardService.list(home, me.getId()))
+                .extracting(CupboardItemResponse::name, CupboardItemResponse::runningLow)
+                .containsExactly(tuple("salt-" + tag, false));
+    }
+
+    @Test
+    void garlicWrittenTwoWaysIsOneRowCountedInCloves() {
+        RecipeResponse pasta = recipe("Pasta", 2,
+                new RecipeIngredientRequest("minced garlic", new BigDecimal("1"), "tbsp", null, false),
+                new RecipeIngredientRequest("garlic cloves, minced", new BigDecimal("5"), null, null, false),
+                new RecipeIngredientRequest("garlic powder", new BigDecimal("1"), "tsp", null, false));
+        RecipeResponse curry = recipe("Curry", 2,
+                new RecipeIngredientRequest("Garlic (minced)", new BigDecimal("1"), "tsp", null, false));
+
+        addRecipe(pasta, null, null, false);
+        plan(curry, MONDAY, 2);
+        addWeek();
+
+        assertThat(list()).extracting(i -> i.name().toLowerCase(), i -> i.quantity().stripTrailingZeros().toPlainString(),
+                        GroceryListItemResponse::unit)
+                .containsExactlyInAnyOrder(tuple("garlic", "9", "clove"), tuple("garlic powder", "1", "tsp"));
+        // The recipes themselves still say what they said.
+        assertThat(recipeService.get(pasta.id(), home, me.getId()).ingredients())
+                .extracting(i -> i.ingredientName())
+                .contains("minced garlic", "garlic cloves, minced");
+    }
+
     // --- Without a cupboard ---
 
     @Test

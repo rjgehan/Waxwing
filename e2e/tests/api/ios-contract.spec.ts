@@ -226,6 +226,15 @@ test('the cupboard sheet: the whole edit with a use-by date, clearing it, and an
   // An older build never sends useBy: the date stays. The switch turned off sends "".
   expect((await call('PATCH', url, { token, body: { staple: false } })).useBy).toBe(isoDate(2));
   expect((await call('PATCH', url, { token, body: { useBy: '' } })).useBy).toBeNull();
+
+  // "Also known as": the phone offers it only when the item carries the list, asks for
+  // suggestions, and sends every name as an array. An older build never sends it: they stay.
+  expect(saved.alsoKnownAs).toEqual([]);
+  expect(await call('GET', `${url}/other-names`, { token })).toEqual([]);
+  const named = await call('PATCH', url, { token, body: { alsoKnownAs: ['spinach', 'Baby Spinach Leaves'] } });
+  expect(named.alsoKnownAs).toEqual(['Baby Spinach Leaves', 'spinach']);
+  expect((await call('PATCH', url, { token, body: { staple: true } })).alsoKnownAs).toHaveLength(2);
+  expect((await call('PATCH', url, { token, body: { alsoKnownAs: [] } })).alsoKnownAs).toEqual([]);
 });
 
 test('meal plans: the requests the phone sends, its Apple Intelligence picks, and the fields it decodes', async () => {
