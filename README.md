@@ -60,18 +60,17 @@ flowchart LR
         Web["Web app<br/>React + TypeScript + Vite"]
     end
     subgraph Home["Home server · Docker Compose on CasaOS"]
-        Front["nginx<br/>web app + /api proxy"]
         API["Spring Boot API<br/>REST · JWT · STOMP WebSocket"]
         PG[("PostgreSQL")]
         Redis[("Redis<br/>pub/sub")]
     end
-    CF["Cloudflare Tunnel"]
+    CF["Cloudflare Tunnel<br/>routes the site, /api and /ws"]
     OFF["Open Food Facts"]
     GH["GitHub Actions → GHCR"]
 
     iOS --> CF
     Web --> CF
-    CF --> Front --> API
+    CF -- "/api, /ws" --> API
     API --> PG
     API <--> Redis
     API --> OFF
@@ -81,7 +80,7 @@ flowchart LR
 - **One API, two clients.** The Spring Boot backend serves the React web app and the native iPhone app over the same REST API. Every household's data is scoped to that household.
 - **Live updates.** A change to the grocery list is published to Redis. Every backend instance relays it to a STOMP WebSocket topic for that household, so open web clients update without a refresh. The iPhone app reloads the list when it's opened or pulled down.
 - **AI on the device, not in the cloud.** Recipe parsing and receipt-line naming use Apple's on-device Foundation Models: the model runs on the phone, so there are no API keys and no per-request cost.
-- **Delivery.** GitHub Actions builds the backend and frontend images and pushes them to GHCR. Watchtower on the home server rolls them out, and a Cloudflare Tunnel publishes the site without opening ports. iPhone builds go to TestFlight through [`ios/release.sh`](ios/release.sh).
+- **Delivery.** GitHub Actions builds the backend and frontend images and pushes them to GHCR. Watchtower on the home server rolls them out, and a Cloudflare Tunnel publishes it without opening ports, sending `/api` and `/ws` straight to the backend. iPhone builds go to TestFlight through [`ios/release.sh`](ios/release.sh).
 
 ## Engineering highlights
 
