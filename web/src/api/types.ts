@@ -187,6 +187,11 @@ export interface CupboardItem {
   useSoonGuess?: boolean;
   /** "by Thu", "today", "past its date", "soon". */
   useSoonLabel?: string | null;
+  /**
+   * Other names recipes give it — "sea salt" for salt — A to Z. A recipe line by any of them counts
+   * as this item, so a staple stays off the list whatever the recipe calls it. Absent on an older server.
+   */
+  alsoKnownAs?: string[];
 }
 
 /** One group of the common things a kitchen starts with. The list itself lives on the server. */

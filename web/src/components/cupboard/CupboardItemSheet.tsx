@@ -1,7 +1,7 @@
-import { useId, useState, type FormEvent } from 'react';
+import { useEffect, useId, useState, type FormEvent } from 'react';
 import { api, ApiError } from '../../api/client';
 import type { CupboardItem, GroceryCategory, RestockReminder } from '../../api/types';
-import { cx, ErrorText, Field, Input, List, NoteBox, Row, Segmented, Select, Sheet, Tile, Toggle } from '../ui';
+import { Chip, cx, ErrorText, Field, Input, List, NoteBox, Row, Segmented, Select, Sheet, Tile, Toggle } from '../ui';
 import UnitInput from '../UnitInput';
 import { RestockField, saveRestock } from '../Restock';
 import { everyLabel } from '../../utils/restock';
@@ -13,8 +13,9 @@ type Amount = 'have' | 'low' | 'exact';
 
 /**
  * Everything about one cupboard item (mockup 4.7): its name, its aisle, how much there is, whether
- * you always have it, and a restock reminder. Renaming it to something already in the cupboard
- * merges the two rather than keeping both — the sheet says so before Save, not after.
+ * you always have it, a restock reminder, and the other names recipes call it. Renaming it to
+ * something already in the cupboard merges the two rather than keeping both — the sheet says so
+ * before Save, not after.
  *
  * Save is the header's text action, as on the iPhone; there is no close button, because the scrim,
  * Escape and a pull down all leave without saving. Remove is a quiet last row.
@@ -52,6 +53,9 @@ export default function CupboardItemSheet({
   // Only offered when the server knows about use-by dates (an older one never sends the field).
   const hasUseBy = item.useBy !== undefined;
   const [useBy, setUseBy] = useState(item.useBy ?? '');
+  // Likewise "Also known as": only when the server sends the field.
+  const hasNames = item.alsoKnownAs !== undefined;
+  const [names, setNames] = useState<string[]>(item.alsoKnownAs ?? []);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -65,9 +69,10 @@ export default function CupboardItemSheet({
   const lowChanged = !exact && (amount === 'low') !== item.runningLow;
   const reminderChanged = everyDays !== (reminder?.everyDays ?? null);
   const useByChanged = hasUseBy && useBy !== (item.useBy ?? '');
+  const namesChanged = hasNames && JSON.stringify(names) !== JSON.stringify(item.alsoKnownAs ?? []);
   const changed =
     renamed || categoryId !== (item.categoryId ?? '') || staple !== item.staple || quantityModeChanged ||
-    quantityValueChanged || lowChanged || reminderChanged || useByChanged;
+    quantityValueChanged || lowChanged || reminderChanged || useByChanged || namesChanged;
 
   async function save(e?: FormEvent) {
     e?.preventDefault();
@@ -81,7 +86,8 @@ export default function CupboardItemSheet({
     setError(null);
     try {
       let updated = item;
-      if (renamed || staple !== item.staple || quantityModeChanged || quantityValueChanged || lowChanged || useByChanged) {
+      if (renamed || staple !== item.staple || quantityModeChanged || quantityValueChanged || lowChanged || useByChanged ||
+          namesChanged) {
         updated = await api<CupboardItem>('PATCH', `/api/households/${householdId}/cupboard/${item.id}`, {
           name: renamed ? trimmed : null,
           staple: staple !== item.staple ? staple : null,
@@ -91,6 +97,8 @@ export default function CupboardItemSheet({
           runningLow: lowChanged ? amount === 'low' : null,
           // "" clears it; left out, the server leaves it alone.
           ...(useByChanged ? { useBy } : {}),
+          // Every other name, replacing the old ones; left out, they stay as they were.
+          ...(namesChanged ? { alsoKnownAs: names } : {}),
         });
       }
       // The aisle belongs to the ingredient — the new one, after a rename — so it goes last.
@@ -244,6 +252,10 @@ export default function CupboardItemSheet({
           )}
         </List>
 
+        {hasNames && (
+          <OtherNames householdId={householdId} itemId={item.id} ownName={item.name} names={names} onChange={setNames} />
+        )}
+
         {mergesWith && (
           <NoteBox tone="sky" icon="info">
             Renaming this to “{trimmed}” would merge it with the item you already have.
@@ -262,6 +274,100 @@ export default function CupboardItemSheet({
         </List>
       </form>
     </Sheet>
+  );
+}
+
+/**
+ * "Also known as": the other names recipes give this item — "sea salt", "salt and pepper" for salt.
+ * A recipe line by any of them counts as the item, so a staple stays off the list whatever it is
+ * called there. Names already used in the household's own recipes and list are offered to tap in.
+ */
+function OtherNames({
+  householdId,
+  itemId,
+  ownName,
+  names,
+  onChange,
+}: {
+  householdId: string;
+  itemId: string;
+  ownName: string;
+  names: string[];
+  onChange: (names: string[]) => void;
+}) {
+  const [draft, setDraft] = useState('');
+  const [suggested, setSuggested] = useState<string[]>([]);
+
+  useEffect(() => {
+    let live = true;
+    api<string[]>('GET', `/api/households/${householdId}/cupboard/${itemId}/other-names`)
+      .then((found) => live && setSuggested(found))
+      // Only suggestions: without them the box still takes a name typed in.
+      .catch(() => {});
+    return () => {
+      live = false;
+    };
+  }, [householdId, itemId]);
+
+  const has = (name: string) =>
+    name.trim().toLowerCase() === ownName.trim().toLowerCase() ||
+    names.some((n) => n.trim().toLowerCase() === name.trim().toLowerCase());
+
+  function add(name: string) {
+    const said = name.trim().replace(/\s+/g, ' ');
+    if (said && !has(said)) onChange([...names, said]);
+    setDraft('');
+  }
+
+  const offers = suggested.filter((s) => !has(s));
+  return (
+    <Field label="Also known as" hint="Recipes that call it any of these count as this item.">
+      {names.length > 0 && (
+        <div className="mb-2 flex flex-wrap gap-2">
+          {names.map((n) => (
+            <Chip key={n} active onClick={() => onChange(names.filter((x) => x !== n))} aria-label={`Remove ${n}`}>
+              {n}
+              <Icon name="x" size={12} />
+            </Chip>
+          ))}
+        </div>
+      )}
+      <div className="flex gap-2">
+        <Input
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onKeyDown={(e) => {
+            // Enter adds the name rather than saving the whole sheet.
+            if (e.key === 'Enter') {
+              e.preventDefault();
+              add(draft);
+            }
+          }}
+          placeholder="Another name — sea salt"
+          aria-label="Another name"
+        />
+        <button
+          type="button"
+          onClick={() => add(draft)}
+          disabled={!draft.trim()}
+          className="press shrink-0 px-2 text-[0.9375rem] font-semibold text-accent-ink disabled:opacity-40"
+        >
+          Add
+        </button>
+      </div>
+      {offers.length > 0 && (
+        <div className="mt-2.5">
+          <p className="mb-1.5 text-xs text-muted">From your recipes and list</p>
+          <div className="flex flex-wrap gap-2">
+            {offers.map((s) => (
+              <Chip key={s} icon="plus" onClick={() => add(s)}>
+                {s}
+              </Chip>
+            ))}
+          </div>
+        </div>
+      )}
+    </Field>
   );
 }
 
