@@ -56,13 +56,13 @@ extension SampleData {
 
     static let cupboardMockup: [CupboardItem] = [
         CupboardItem(id: UUID(), name: "Chickpeas (tin)", runningLow: false, staple: false, categoryId: tinsAisle, onList: false,
-                     quantity: 3, unit: "tins", ingredientId: UUID()),
+                     quantity: 3, unit: "tins", ingredientId: UUID(), alsoKnownAs: ["garbanzo beans"]),
         CupboardItem(id: UUID(), name: "Tomato passata", runningLow: true, staple: false, categoryId: tinsAisle, onList: false,
                      quantity: nil, unit: nil, ingredientId: UUID()),
         CupboardItem(id: UUID(), name: "Peanut butter", runningLow: false, staple: false, categoryId: tinsAisle, onList: false,
                      quantity: nil, unit: nil, ingredientId: UUID()),
         CupboardItem(id: UUID(), name: "Olive oil", runningLow: false, staple: true, categoryId: spicesAisle, onList: false,
-                     quantity: nil, unit: nil, ingredientId: UUID()),
+                     quantity: nil, unit: nil, ingredientId: UUID(), alsoKnownAs: ["extra virgin olive oil"]),
         CupboardItem(id: UUID(), name: "Smoked paprika", runningLow: false, staple: false, categoryId: spicesAisle, onList: false,
                      quantity: nil, unit: nil, ingredientId: paprika),
         CupboardItem(id: UUID(), name: "Cumin", runningLow: false, staple: false, categoryId: spicesAisle, onList: false,

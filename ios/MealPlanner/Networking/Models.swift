@@ -548,6 +548,10 @@ struct CupboardItem: Codable, Identifiable, Hashable {
     var useSoonGuess: Bool? = nil
     /// "by Thu", "today", "past its date", "soon".
     var useSoonLabel: String? = nil
+    /// Other names recipes give it — "sea salt" for salt — A to Z. A recipe line by any of them
+    /// counts as this item, so a staple stays off the list whatever the recipe calls it. Nil from
+    /// a server that has never heard of other names, which is how the sheet knows not to offer them.
+    var alsoKnownAs: [String]? = nil
 
     var tracksQuantity: Bool { quantity != nil }
 

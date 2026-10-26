@@ -641,7 +641,8 @@ actor APIClient {
         trackQuantity: Bool? = nil,
         quantity: Double? = nil,
         unit: String? = nil,
-        useBy: String? = nil
+        useBy: String? = nil,
+        alsoKnownAs: [String]? = nil
     ) async throws -> CupboardItem {
         var body: [String: Any] = [:]
         if let name { body["name"] = name }
@@ -651,7 +652,14 @@ actor APIClient {
         if let unit { body["unit"] = unit }
         // "2026-10-08" sets the date on the packet and "" clears it; left out, it is left alone.
         if let useBy { body["useBy"] = useBy }
+        // Every other name, replacing the old ones; left out, they stay as they were.
+        if let alsoKnownAs { body["alsoKnownAs"] = alsoKnownAs }
         return try await send("PATCH", "/api/households/\(household.uuidString)/cupboard/\(item.uuidString)", body: body)
+    }
+
+    /// Names an item might also go by, from the household's own recipes and list — only suggestions.
+    func cupboardOtherNames(household: UUID, item: UUID) async throws -> [String] {
+        try await get("/api/households/\(household.uuidString)/cupboard/\(item.uuidString)/other-names")
     }
 
     func removeFromCupboard(household: UUID, item: UUID) async throws {

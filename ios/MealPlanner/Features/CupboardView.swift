@@ -388,7 +388,8 @@ extension CupboardItem {
     /// The same item with one thing changed, for answering a tap before the server does.
     func with(runningLow: Bool? = nil, quantity: Double? = nil) -> CupboardItem {
         CupboardItem(id: id, name: name, runningLow: runningLow ?? self.runningLow, staple: staple, categoryId: categoryId,
-                     onList: onList, quantity: quantity ?? self.quantity, unit: unit, ingredientId: ingredientId)
+                     onList: onList, quantity: quantity ?? self.quantity, unit: unit, ingredientId: ingredientId,
+                     alsoKnownAs: alsoKnownAs)
     }
 }
 
@@ -461,8 +462,9 @@ struct CupboardRow: View {
 
 /**
  One cupboard item (mockup 4.7): its name, its aisle, how much there is — Have, Low or an exact
- count — whether you always have it, and a restock reminder. Renaming it to something already in
- the cupboard merges the two; the sheet says so before Save, not after.
+ count — whether you always have it, a restock reminder, and the other names recipes call it.
+ Renaming it to something already in the cupboard merges the two; the sheet says so before Save,
+ not after.
  */
 struct CupboardItemSheet: View {
     let item: CupboardItem
@@ -485,6 +487,9 @@ struct CupboardItemSheet: View {
     @State private var everyDays: Int?
     /// Nil means no date on the packet.
     @State private var useBy: Date?
+    @State private var names: [String]
+    @State private var newName = ""
+    @State private var suggested: [String] = []
     @State private var busy = false
     @State private var error: String?
 
@@ -506,6 +511,7 @@ struct CupboardItemSheet: View {
         _staple = State(initialValue: item.staple)
         _everyDays = State(initialValue: reminder?.everyDays)
         _useBy = State(initialValue: item.useBy.flatMap(UseByDate.date))
+        _names = State(initialValue: item.alsoKnownAs ?? [])
     }
 
     /// Blank means "leave it alone", not "call it nothing".
@@ -659,6 +665,11 @@ struct CupboardItemSheet: View {
                     .tint(Palette.herb)
                 }
 
+                // Only offered by a server that keeps other names.
+                if item.alsoKnownAs != nil {
+                    otherNames
+                }
+
                 if mergesWith != nil {
                     NoteBox("Renaming this to “\(named)” would merge it with the item you already have.",
                             tone: .sky, systemImage: "info.circle")
@@ -673,6 +684,77 @@ struct CupboardItemSheet: View {
             .padding(.bottom, 20)
         }
         .kitchenSheet([.large])
+        .task { await loadSuggestions() }
+    }
+
+    /**
+     "Also known as": the other names recipes give this item — "sea salt", "salt and pepper" for
+     salt. A recipe line by any of them counts as the item, so a staple stays off the list whatever
+     it is called there. Names the household's own recipes and list already use are offered to tap in.
+     */
+    private var otherNames: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Also known as").font(.system(size: 13, weight: .semibold)).foregroundStyle(Palette.muted)
+            if !names.isEmpty {
+                ChipFlow(spacing: 8) {
+                    ForEach(names, id: \.self) { name in
+                        Chip(name, systemImage: "xmark", isOn: true) {
+                            names.removeAll { $0 == name }
+                        }
+                        .accessibilityLabel("Remove \(name)")
+                    }
+                }
+            }
+            FieldBox(nil, text: $newName, prompt: "Another name — sea salt") {
+                Button("Add") { addName(newName) }
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(Palette.accentInk)
+                    .disabled(newName.trimmingCharacters(in: .whitespaces).isEmpty)
+            }
+            .textInputAutocapitalization(.never)
+            .onSubmit { addName(newName) }
+            Text("Recipes that call it any of these count as this item.")
+                .font(.system(size: 12)).foregroundStyle(Palette.muted)
+            let offers = suggested.filter { !hasName($0) }
+            if !offers.isEmpty {
+                Text("From your recipes and list").font(.system(size: 12)).foregroundStyle(Palette.muted)
+                    .padding(.top, 4)
+                ChipFlow(spacing: 8) {
+                    ForEach(offers, id: \.self) { name in
+                        Chip(name, systemImage: "plus", isOn: false) { addName(name) }
+                    }
+                }
+            }
+        }
+    }
+
+    /// The item's own name, or one it already has, whatever the capitals.
+    private func hasName(_ name: String) -> Bool {
+        let said = name.trimmingCharacters(in: .whitespaces).lowercased()
+        return said == item.name.lowercased() || names.contains { $0.lowercased() == said }
+    }
+
+    private func addName(_ name: String) {
+        let said = name.split(whereSeparator: \.isWhitespace).joined(separator: " ")
+        if !said.isEmpty, !hasName(said) { names.append(said) }
+        newName = ""
+    }
+
+    /// Only suggestions: without them the box still takes a name typed in.
+    private func loadSuggestions() async {
+        guard item.alsoKnownAs != nil else { return }
+        if sample {
+            suggested = ["kosher salt", "salt and pepper", "sea salt"]
+            return
+        }
+        guard let household = session.household?.id else { return }
+        suggested = (try? await APIClient.shared.cupboardOtherNames(household: household, item: item.id)) ?? []
+    }
+
+    /// What to send for the other names: nil when they haven't changed.
+    private var namesChange: [String]? {
+        guard let had = item.alsoKnownAs, had != names else { return nil }
+        return names
     }
 
     /// What to send for the date: nil when it hasn't changed, "" to clear it.
@@ -702,7 +784,8 @@ struct CupboardItemSheet: View {
                 trackQuantity: modeChanged ? exact : nil,
                 quantity: exact ? quantity : nil,
                 unit: exact ? unit.trimmingCharacters(in: .whitespaces) : nil,
-                useBy: useByChange
+                useBy: useByChange,
+                alsoKnownAs: namesChange
             )
             if !exact, (amount == .low) != saved.runningLow {
                 saved = try await APIClient.shared.updateCupboard(household: household, item: saved.id, runningLow: amount == .low)

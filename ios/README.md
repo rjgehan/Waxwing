@@ -276,6 +276,13 @@ joining a house nobody has answered them for; any time after, from the card at t
 and Household → Kitchen & features changes the answers. They go through RootView's one prompt
 slot, ahead of the add-an-email prompt and "Time to restock?", so no two of them ever stack.
 
+A cupboard item's sheet has **Also known as** (`alsoKnownAs`), offered only when the item carries
+the list: the other names recipes give it — "sea salt", "salt and pepper" for salt — as chips that
+come off with a tap, a box to type one more, and the household's own names that have the item's
+name in them (`GET …/cupboard/{id}/other-names`) to tap in. Save sends every name, and only when
+they changed. The server does the matching, so a staple stays off the list whatever a recipe calls
+it; the phone only edits the names.
+
 A recipe's machines (`appliances` on the wire) are spotted in its method by the server. The
 recipe page shows them on its picture after the quick facts, and the recipe form's Machines chips
 set them by hand — sent only when somebody changed them, since a list tells the server to stop
