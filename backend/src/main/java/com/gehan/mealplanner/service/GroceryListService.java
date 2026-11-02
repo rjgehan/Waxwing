@@ -489,7 +489,7 @@ public class GroceryListService {
         Context ctx = context(householdId);
         ListChanges changes = new ListChanges(groceryListItemRepository.findByHouseholdId(householdId));
         addRecipe(household, entry, ctx, changes, onList(entry, changes));
-        if (entry.getItem() != null) {
+        if (entry.getItem() != null && !entry.isLeftovers()) {
             // No amount, so asking twice is still one row of eggs.
             changes.save(addTo(household, entry.getItem(), null, null, null));
         }
@@ -597,6 +597,9 @@ public class GroceryListService {
 
     private PlannedShoppingResponse shoppingFor(Household household, MealPlanEntry entry, Context ctx, Set<UUID> waiting) {
         UUID id = entry.getId();
+        if (entry.isLeftovers()) {
+            return new PlannedShoppingResponse(id, "LEFTOVERS", List.of(), 0, 0);
+        }
         if (entry.getPlace() != null) {
             return new PlannedShoppingResponse(id, "EAT_OUT", List.of(), 0, 0);
         }
@@ -737,7 +740,9 @@ public class GroceryListService {
         if (entry.getRecipe() == null && entry.getDeletedRecipeName() != null) {
             return;
         }
-        Map<UnitKey, Need> needs = entry.getRecipe() == null ? Map.of() : needs(entry.getRecipe(),
+        // Leftovers were bought for the meal they came from: nothing, and what they once put on
+        // the list comes back off like any ingredient a meal stops using.
+        Map<UnitKey, Need> needs = entry.getRecipe() == null || entry.isLeftovers() ? Map.of() : needs(entry.getRecipe(),
                 entry.getServings() != null ? entry.getServings() : household.getDefaultServings(),
                 entry.getIncludedOptionalIngredientIds(), ctx, true);
 

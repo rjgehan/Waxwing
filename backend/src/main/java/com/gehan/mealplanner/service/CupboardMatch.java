@@ -18,8 +18,8 @@ import java.util.UUID;
  * that the item's own name or one of its "also known as" names — so one salt covers "sea salt"
  * and "salt and pepper" once somebody has said so.
  *
- * Names match as written, give or take capitals, punctuation, brackets and a plural on the last
- * word ({@link #spelling}). Nothing looser: dropping words the way {@link IngredientKeys#key}
+ * Names match as written, give or take capitals, punctuation and a plural on the last word
+ * ({@link #spelling}). Words in brackets count: "chickpeas (tin)" is not "chickpeas". Nothing looser: dropping words the way {@link IngredientKeys#key}
  * does would make a staple "pepper" swallow "red pepper", which is a vegetable.
  */
 public final class CupboardMatch {
@@ -81,13 +81,12 @@ public final class CupboardMatch {
         return all;
     }
 
-    /** "Sea Salt (fine)" → "sea salt", "Peppercorns" → "peppercorn". */
+    /** "Sea-Salt" → "sea salt", "Peppercorns" → "peppercorn", "Chickpeas (tin)" → "chickpeas tin". */
     public static String spelling(String name) {
         if (name == null) {
             return "";
         }
         String plain = name.toLowerCase(Locale.ROOT)
-                .replaceAll("\\(.*?\\)", " ")
                 .replaceAll("[^\\p{L}\\p{N}& ]", " ")
                 .replaceAll("\\s+", " ")
                 .trim();

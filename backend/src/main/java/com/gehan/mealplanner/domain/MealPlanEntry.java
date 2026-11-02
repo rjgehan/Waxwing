@@ -104,6 +104,25 @@ public class MealPlanEntry {
     private String notes;
 
     /**
+     * Eaten from something cooked before — yesterday's dinner again today. It is on the Plan like
+     * any meal and counts as eaten, but nothing is ever bought for it: the grocery list leaves it
+     * out, and a meal marked leftovers takes back what it had put on the list.
+     */
+    @Column(columnDefinition = "boolean not null default false")
+    @Builder.Default
+    private boolean leftovers = false;
+
+    /**
+     * The meal it was left over from — "Sunday's dinner" — as a day and a meal rather than a link,
+     * so deleting or changing that meal leaves this one as it was. Null for leftovers nobody said
+     * the source of.
+     */
+    private LocalDate leftoversFromDate;
+
+    @Enumerated(EnumType.STRING)
+    private MealType leftoversFromMeal;
+
+    /**
      * Which of the recipe's optional ingredients to actually buy for this occurrence — decided
      * once, when the recipe is planned onto this slot, rather than asked again every time
      * something adds this entry to the grocery list. An id no longer on the recipe (edited since)

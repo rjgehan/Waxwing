@@ -1,5 +1,6 @@
 package com.gehan.mealplanner.web;
 
+import com.gehan.mealplanner.domain.MealType;
 import com.gehan.mealplanner.dto.MealPlanDtos.MealPlanEntryResponse;
 import com.gehan.mealplanner.dto.MealPlanDtos.AddMealPlanEntryRequest;
 import com.gehan.mealplanner.dto.MealPlanDtos.UpdateMealPlanEntryRequest;
@@ -32,6 +33,15 @@ public class MealPlanController {
     }
 
     /** Adds one dish to a slot — call again to put sides alongside a main. */
+    /** The last few days' meals this slot could be leftovers of, newest first. */
+    @GetMapping("/leftovers")
+    public List<MealPlanEntryResponse> leftoverChoices(@AuthenticationPrincipal UUID userId,
+                                                       @PathVariable UUID householdId,
+                                                       @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
+                                                       @RequestParam MealType mealType) {
+        return mealPlanService.leftoverChoices(householdId, userId, date, mealType);
+    }
+
     @PostMapping("/entries")
     public MealPlanEntryResponse add(@AuthenticationPrincipal UUID userId,
                                       @PathVariable UUID householdId,

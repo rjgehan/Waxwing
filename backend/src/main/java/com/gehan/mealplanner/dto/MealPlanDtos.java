@@ -35,7 +35,15 @@ public class MealPlanDtos {
              */
             List<UUID> includedOptionalIngredientIds,
             /** Or one of the household's saved links — a recipe that is still only a link. */
-            UUID savedLinkId) {
+            UUID savedLinkId,
+            /** Eaten from something cooked before: on the Plan, but never on the grocery list. */
+            Boolean leftovers,
+            /**
+             * Or, instead of what it is, the earlier meal it is left over from: the same dish goes
+             * in this slot as leftovers, saying which meal it came from. That meal's day can't be
+             * after this one's.
+             */
+            UUID leftoversOf) {
 
         /** Everything from before saved links, which is still most of what gets planned. */
         public AddMealPlanEntryRequest(LocalDate date, MealType mealType, UUID recipeId, UUID placeId,
@@ -43,6 +51,14 @@ public class MealPlanDtos {
                 List<UUID> includedOptionalIngredientIds) {
             this(date, mealType, recipeId, placeId, itemName, time, servings, notes,
                     includedOptionalIngredientIds, null);
+        }
+
+        /** Everything from before leftovers. */
+        public AddMealPlanEntryRequest(LocalDate date, MealType mealType, UUID recipeId, UUID placeId,
+                String itemName, LocalTime time, Integer servings, String notes,
+                List<UUID> includedOptionalIngredientIds, UUID savedLinkId) {
+            this(date, mealType, recipeId, placeId, itemName, time, servings, notes,
+                    includedOptionalIngredientIds, savedLinkId, null, null);
         }
     }
 
@@ -62,11 +78,25 @@ public class MealPlanDtos {
             String notes,
             /** Same meaning as on {@link AddMealPlanEntryRequest}; null leaves it unchanged. */
             List<UUID> includedOptionalIngredientIds,
-            UUID savedLinkId) {
+            UUID savedLinkId,
+            /**
+             * True marks the meal leftovers — nothing bought for it, and what it put on the list
+             * comes back off when the list next catches up; false makes it a meal to shop for again.
+             * Null leaves it alone, except that putting something else in the slot ends it.
+             */
+            Boolean leftovers) {
 
         public UpdateMealPlanEntryRequest(UUID recipeId, UUID placeId, String itemName, LocalTime time,
                 Boolean clearTime, Integer servings, String notes, List<UUID> includedOptionalIngredientIds) {
             this(recipeId, placeId, itemName, time, clearTime, servings, notes, includedOptionalIngredientIds, null);
+        }
+
+        /** Everything from before leftovers. */
+        public UpdateMealPlanEntryRequest(UUID recipeId, UUID placeId, String itemName, LocalTime time,
+                Boolean clearTime, Integer servings, String notes, List<UUID> includedOptionalIngredientIds,
+                UUID savedLinkId) {
+            this(recipeId, placeId, itemName, time, clearTime, servings, notes, includedOptionalIngredientIds,
+                    savedLinkId, null);
         }
     }
 
@@ -113,6 +143,11 @@ public class MealPlanDtos {
             String savedLinkName,
             String savedLinkUrl,
             SavedLinkSource savedLinkSource,
-            UUID savedLinkImageId) {
+            UUID savedLinkImageId,
+            /** Eaten from something cooked before: never on the grocery list. */
+            boolean leftovers,
+            /** The day and meal it was left over from, when somebody said. */
+            LocalDate leftoversFromDate,
+            MealType leftoversFromMeal) {
     }
 }
