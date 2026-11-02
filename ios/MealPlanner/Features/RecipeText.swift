@@ -72,14 +72,17 @@ enum RecipeText {
      Reads a recipe laid out the way the question asks into a draft for the editor. It takes what
      it can find and ignores the rest — code fences, bold, bullets of any kind, numbered steps, a
      chatty line before or after — and the editor is where anything it gets wrong is fixed.
+
+     The recipe's own "Servings:" line says how many its amounts are for; `fallbackServings` is
+     only for a paste that never says.
     */
-    static func parse(_ raw: String) throws -> RecipeDraft {
-        try read(raw).draft
+    static func parse(_ raw: String, fallbackServings: Int = 4) throws -> RecipeDraft {
+        try read(raw, fallbackServings: fallbackServings).draft
     }
 
     /// The reader behind `parse`, which also counts the ingredients that came in the question's
     /// "qty | unit | name" layout, so `answer` can tell an answer from a page that has a "|" in it.
-    private static func read(_ raw: String) throws -> (draft: RecipeDraft, piped: Int) {
+    private static func read(_ raw: String, fallbackServings: Int = 4) throws -> (draft: RecipeDraft, piped: Int) {
         var text = raw.replacingOccurrences(of: "\r", with: "")
         // If the reply came in a code block, what matters is inside it.
         if let fenced = text.firstMatch(of: fence), let inside = fenced.output[1].substring {
@@ -151,7 +154,7 @@ enum RecipeText {
         let draft = RecipeDraft(
             name: name,
             description: description,
-            servings: servings ?? 4,
+            servings: servings ?? fallbackServings,
             prep: prep ?? 0,
             cook: cook ?? 0,
             instructions: steps.joined(separator: "\n"),
@@ -171,8 +174,8 @@ enum RecipeText {
      its "Title | Site" line and its "US Customary | Metric" switch, and the rules would take the
      page's menu for the name and its buttons for ingredients. Those pages are the model's job.
     */
-    static func answer(_ raw: String) -> RecipeDraft? {
-        guard raw.contains("|"), let (draft, piped) = try? read(raw),
+    static func answer(_ raw: String, fallbackServings: Int = 4) -> RecipeDraft? {
+        guard raw.contains("|"), let (draft, piped) = try? read(raw, fallbackServings: fallbackServings),
               piped * 2 > draft.ingredients.count else { return nil }
         return draft
     }

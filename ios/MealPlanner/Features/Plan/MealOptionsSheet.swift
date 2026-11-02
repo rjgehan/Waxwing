@@ -6,7 +6,8 @@ import SwiftUI
  time, which optional extras, put it on the list, open it, take it off.
 
  A single food like "eggs" gets its own Add to groceries here: planning eggs does not mean
- needing eggs, so the week's button leaves it alone.
+ needing eggs, so the week's button leaves it alone. A dish eaten from something cooked before is
+ switched to Leftovers here, and then has nothing to add.
 */
 struct MealOptionsSheet: View {
     let store: PlanStore
@@ -108,6 +109,21 @@ struct MealOptionsSheet: View {
                     if !optional.isEmpty, let recipe {
                         rowButton { extras = recipe } label: {
                             ListRow("Optional ingredients", detail: "\(chosen) of \(optional.count)", chevron: true, tile: ("leaf", .herb))
+                        }
+                    }
+                    // From a server that knows leftovers; a single food is never shopped for anyway.
+                    if entry.leftovers != nil && entry.itemName == nil && entry.recipeDeleted != true {
+                        ListRow("Leftovers",
+                                subtitle: entry.leftovers == true
+                                    ? PlanText.leftovers(entry).replacingOccurrences(of: "Leftovers · ", with: "Nothing to buy · ")
+                                    : "Eaten from something cooked before",
+                                tile: ("repeat", .herb)) {
+                            Toggle("Leftovers", isOn: Binding(
+                                get: { entry.leftovers == true },
+                                set: { on in Task { try? await store.patch([entry], ["leftovers": on]) } }
+                            ))
+                            .labelsHidden()
+                            .tint(Palette.herb)
                         }
                     }
                     if entry.contributes {

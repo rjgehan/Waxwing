@@ -36,6 +36,8 @@ struct FillSlotView: View {
     @State private var newPlace = false
     @State private var timed: Bool
     @State private var time: Date
+    /// What this slot could be leftovers of: the last few days' meals, newest first.
+    @State private var leftovers: [MealPlanEntry] = []
 
     enum Filter: Hashable { case all, mains, sides, cupboard, links, tag(String) }
 
@@ -85,6 +87,7 @@ struct FillSlotView: View {
         .task {
             if store.recipes.isEmpty || (store.session.cupboardOn && store.cupboard.isEmpty) { await store.loadPickings() }
         }
+        .task { await loadLeftovers() }
         .sheet(item: $asking) { recipe in
             ExtrasSheet(recipe: recipe, selected: Set(target.replacing?.recipeId == recipe.id
                                                      ? target.replacing?.includedOptionalIngredientIds ?? [] : [])) { extras in
@@ -167,6 +170,21 @@ struct FillSlotView: View {
             }
             ScrollView {
                 VStack(alignment: .leading, spacing: 14) {
+                    // Yesterday's dinner again: first, and only before anyone searches or filters.
+                    if q.isEmpty && filter == .all && !leftovers.isEmpty {
+                        section("Leftovers") {
+                            ForEach(leftovers) { meal in
+                                Button { Task { await put(.leftovers(of: meal.id)) } } label: {
+                                    rowFace(title: Text(meal.label).fontWeight(.medium),
+                                            subtitle: "\(PlanText.dayBefore(meal.date, eaten: target.date)) · \(meal.mealType.title) · nothing to buy") {
+                                        Tile("repeat", tone: .herb, size: 40)
+                                    } trailing: { EmptyView() }
+                                }
+                                .buttonStyle(PressFade())
+                                .accessibilityLabel("\(meal.label), leftovers")
+                            }
+                        }
+                    }
                     if !shownRecipes.isEmpty {
                         section("Recipes") {
                             ForEach(shownRecipes) { recipe in
@@ -245,6 +263,12 @@ struct FillSlotView: View {
             .scrollDismissesKeyboard(.interactively)
         }
         .disabled(busy)
+    }
+
+    /// Only for a slot being filled, not a dish being swapped.
+    private func loadLeftovers() async {
+        guard !store.sample, target.replacing == nil, let household = store.household else { return }
+        leftovers = await APIClient.shared.leftoverChoices(household: household, date: target.date, meal: target.meal)
     }
 
     private func chip(_ f: Filter, _ title: String) -> some View {

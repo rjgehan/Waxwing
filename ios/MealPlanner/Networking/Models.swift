@@ -280,6 +280,13 @@ struct MealPlanEntry: Codable, Identifiable, Hashable {
     let savedLinkUrl: String?
     let savedLinkSource: SavedLinkSource?
     let savedLinkImageId: UUID?
+    /// Eaten from something cooked before — yesterday's dinner again today. On the Plan like any
+    /// meal, but nothing is ever bought for it. Nil from a server that has never heard of leftovers,
+    /// which is how the options sheet knows not to offer the switch.
+    let leftovers: Bool?
+    /// The day (`YYYY-MM-DD`) and meal it was left over from, when somebody said.
+    let leftoversFromDate: String?
+    let leftoversFromMeal: MealType?
 
     /// Everything past the basics defaults, so the sample data does not have to spell it out.
     init(id: UUID, date: String, mealType: MealType, recipeId: UUID?, recipeName: String?,
@@ -287,7 +294,8 @@ struct MealPlanEntry: Codable, Identifiable, Hashable {
          inCupboard: Bool? = nil, runningLow: Bool? = nil, time: String?, servings: Int?,
          notes: String? = nil, includedOptionalIngredientIds: [UUID]? = nil, recipeDeleted: Bool? = nil,
          savedLinkId: UUID? = nil, savedLinkDeleted: Bool? = nil, savedLinkUrl: String? = nil, savedLinkSource: SavedLinkSource? = nil,
-         savedLinkImageId: UUID? = nil) {
+         savedLinkImageId: UUID? = nil, leftovers: Bool? = nil, leftoversFromDate: String? = nil,
+         leftoversFromMeal: MealType? = nil) {
         self.id = id
         self.date = date
         self.mealType = mealType
@@ -309,6 +317,9 @@ struct MealPlanEntry: Codable, Identifiable, Hashable {
         self.savedLinkUrl = savedLinkUrl
         self.savedLinkSource = savedLinkSource
         self.savedLinkImageId = savedLinkImageId
+        self.leftovers = leftovers
+        self.leftoversFromDate = leftoversFromDate
+        self.leftoversFromMeal = leftoversFromMeal
     }
 
     /** What the web calls entryLabel: a meal is a recipe, a place, or a bare item. */

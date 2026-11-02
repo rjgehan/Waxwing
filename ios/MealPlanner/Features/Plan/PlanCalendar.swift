@@ -20,10 +20,11 @@ struct PlanCalendar: View {
     /// Blanks before the 1st, then every day to the end of the week the month (or the window) ends in.
     private var cells: [Date?] {
         let first = monthCursor.startOfMonth
-        let lead = (Calendar.current.component(.weekday, from: first) + 5) % 7
+        // Sunday first, as a US calendar is: weekday 1 is Sunday whatever the phone's region.
+        let lead = Calendar.current.component(.weekday, from: first) - 1
         let last = monthCursor.endOfMonth
         let runTo = horizonEnd > last && (Calendar.current.dateComponents([.day], from: last, to: horizonEnd).day ?? 99) < 40 ? horizonEnd : last
-        let tail = 6 - (Calendar.current.component(.weekday, from: runTo) + 5) % 7
+        let tail = 7 - Calendar.current.component(.weekday, from: runTo)
         let end = Day.adding(tail, to: runTo)
         let count = (Calendar.current.dateComponents([.day], from: first, to: end).day ?? 0) + 1
         return Array(repeating: nil, count: lead) + (0..<count).map { Day.adding($0, to: first) }
@@ -52,7 +53,7 @@ struct PlanCalendar: View {
 
             let columns = Array(repeating: GridItem(.flexible(), spacing: 0), count: 7)
             LazyVGrid(columns: columns, spacing: 4) {
-                ForEach(Array(["M", "T", "W", "T", "F", "S", "S"].enumerated()), id: \.offset) { _, d in
+                ForEach(Array(["S", "M", "T", "W", "T", "F", "S"].enumerated()), id: \.offset) { _, d in
                     Text(d).font(.system(size: 12, weight: .semibold)).foregroundStyle(Palette.faint)
                         .accessibilityHidden(true)
                 }

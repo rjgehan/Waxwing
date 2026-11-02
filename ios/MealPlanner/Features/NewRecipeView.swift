@@ -745,17 +745,17 @@ struct PastePage: View {
 
     private func readByRules(_ input: String) {
         do {
-            onRead(byRules(try RecipeText.parse(input)))
+            onRead(byRules(try RecipeText.parse(input, fallbackServings: servings)))
         } catch {
             self.error = error.localizedDescription
         }
     }
 
-    /// An answer to the question, filed at the serving count it was asked for — the same as the
-    /// web, and whatever the reply itself claims.
+    /// What the rules read, at the servings the paste itself says — the question's, if it was
+    /// copied, or the AI's own if it was asked another way. The stepper only fills a gap, the same
+    /// as the web.
     private func byRules(_ draft: RecipeDraft) -> RecipeDraft {
         var draft = draft
-        draft.servings = servings
         draft.note = "Read from the pasted answer. Check the amounts, change anything, then save."
         return draft
     }
@@ -765,7 +765,7 @@ struct PastePage: View {
         guard #available(iOS 26.0, *) else { return readByRules(input) }
         // An answer to the question reads exactly by rule, amounts split on its "|" and its
         // description kept; the model is for the pastes the rules cannot read.
-        if let answer = RecipeText.answer(input) { return onRead(byRules(answer)) }
+        if let answer = RecipeText.answer(input, fallbackServings: servings) { return onRead(byRules(answer)) }
         reading = true
         defer { reading = false }
         let cut = input.count > Self.limit
@@ -773,15 +773,15 @@ struct PastePage: View {
             let parsed = try await OnDeviceRecipe.read(String(input.prefix(Self.limit)))
             guard !parsed.ingredientLines.isEmpty else {
                 // A recipe with an Ingredients line reads by rule when the model found nothing.
-                if let draft = try? RecipeText.parse(input) { return onRead(byRules(draft)) }
+                if let draft = try? RecipeText.parse(input, fallbackServings: servings) { return onRead(byRules(draft)) }
                 error = "No recipe found in that text — nothing was invented to fill the gap."
                 return
             }
-            onRead(noted(RecipeDraft(parsed: parsed), cut: cut))
+            onRead(noted(RecipeDraft(parsed: parsed, fallbackServings: servings), cut: cut))
         } catch {
             // The model can still say no — the guardrails, or weights not downloaded yet. An
             // answer in the question's layout does not need it.
-            if let draft = try? RecipeText.parse(input) { return onRead(byRules(draft)) }
+            if let draft = try? RecipeText.parse(input, fallbackServings: servings) { return onRead(byRules(draft)) }
             self.error = "Apple Intelligence couldn’t read that. \(SharedRecipeView.explain(error))"
         }
         #else
@@ -802,11 +802,11 @@ extension RecipeDraft {
     /// What the on-device model read. It copies ingredient lines rather than splitting them,
     /// and RecipeText and Amount do the arithmetic — see ParsedRecipe.
     @available(iOS 26.0, *)
-    init(parsed: ParsedRecipe) {
+    init(parsed: ParsedRecipe, fallbackServings: Int = 4) {
         self.init(
             name: parsed.name,
             description: nil,
-            servings: parsed.servings > 0 ? parsed.servings : 4,
+            servings: parsed.servings > 0 ? parsed.servings : fallbackServings,
             prep: max(parsed.prepMinutes, 0),
             cook: max(parsed.cookMinutes, 0),
             instructions: parsed.steps.joined(separator: "\n"),

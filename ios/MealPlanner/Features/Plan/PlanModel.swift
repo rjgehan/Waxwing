@@ -17,6 +17,7 @@ struct PlannedShopping: Codable, Hashable {
         case eatOut = "EAT_OUT"
         case link = "LINK"
         case deleted = "DELETED"
+        case leftovers = "LEFTOVERS"
         case other
 
         init(from decoder: Decoder) throws {
@@ -50,11 +51,13 @@ enum Filling {
     case item(String)
     case link(UUID)
     case place(UUID, time: String?)
+    /// What an earlier meal was, as leftovers: nothing bought for it.
+    case leftovers(of: UUID)
 }
 
 extension MealPlanEntry {
-    /// A recipe with ingredients: what the week's button puts on the list.
-    var contributes: Bool { recipeId != nil && needsIngredients != true }
+    /// A recipe with ingredients: what the week's button puts on the list. Leftovers never are.
+    var contributes: Bool { recipeId != nil && needsIngredients != true && leftovers != true }
     /// Planned at all (an emptied slot comes back with nothing named).
     var isPlanned: Bool { recipeName != nil || placeName != nil || itemName != nil }
 }
@@ -92,6 +95,28 @@ enum PlanText {
         return names.isEmpty ? nil : "+ " + names.joined(separator: ", ")
     }
 
+    /// "Today", "Yesterday", "Sunday": the day a meal was, seen from the day it is eaten again.
+    static func dayBefore(_ from: String, eaten: String) -> String {
+        guard let was = Day.date(from), let now = Day.date(eaten) else { return from }
+        let days = Calendar.current.dateComponents([.day], from: was.startOfDay, to: now.startOfDay).day ?? 0
+        if days == 0 { return "Today" }
+        if days == 1 { return "Yesterday" }
+        return was.formatted(.dateTime.weekday(.wide))
+    }
+
+    /// "Leftovers · from yesterday's dinner", or just "Leftovers" when nobody said from what — as the web says it.
+    static func leftovers(_ entry: MealPlanEntry) -> String {
+        guard let from = entry.leftoversFromDate, let meal = entry.leftoversFromMeal else { return "Leftovers" }
+        let day = dayBefore(from, eaten: entry.date)
+        let whose: String
+        switch day {
+        case "Today": whose = "earlier"
+        case "Yesterday": whose = "yesterday’s"
+        default: whose = "\(day)’s"
+        }
+        return "Leftovers · from \(whose) \(meal.title.lowercased())"
+    }
+
     /// "Tue 29"
     static func shortDay(_ date: Date) -> String {
         "\(date.formatted(.dateTime.weekday(.abbreviated))) \(date.formatted(.dateTime.day()))"
@@ -106,6 +131,7 @@ enum PlanText {
     /// single food says what the cupboard has of it — or, in a house without one, just what it is.
     static func detail(_ entry: MealPlanEntry, recipe: Recipe?, cupboard: Bool = true) -> String {
         if entry.recipeDeleted == true { return entry.savedLinkDeleted == true ? "Saved link was deleted" : "Recipe was deleted" }
+        if entry.leftovers == true { return leftovers(entry) }
         if entry.placeId != nil { return "Eat out" }
         if entry.savedLinkId != nil {
             return "Saved link · \(SavedLink.label(source: entry.savedLinkSource, url: entry.savedLinkUrl))"
@@ -183,6 +209,10 @@ struct SlotMark: Hashable {
     let canAdd: Bool
 
     static func of(_ dishes: [MealPlanEntry], shopping: ShoppingMap?) -> SlotMark? {
+        // Bought for the meal they came from — a takeaway's second half too.
+        if !dishes.isEmpty, dishes.allSatisfy({ $0.leftovers == true }) {
+            return SlotMark(label: "Leftovers", tone: .neutral, icon: "repeat", canAdd: false)
+        }
         if dishes.contains(where: { $0.placeId != nil }) {
             return SlotMark(label: "Eat out", tone: .plum, icon: "fork.knife", canAdd: false)
         }
@@ -244,6 +274,9 @@ extension APIClient {
         case .place(let id, let time):
             body["placeId"] = id.uuidString
             if let time { body["time"] = time } else if replacing != nil { body["clearTime"] = true }
+        case .leftovers(let id):
+            // The server copies the dish and its servings from that meal.
+            body["leftoversOf"] = id.uuidString
         }
         let household = household.uuidString
         if let replacing {
@@ -252,6 +285,12 @@ extension APIClient {
         body["date"] = date
         body["mealType"] = meal.rawValue
         return try await send("POST", "/api/households/\(household)/meal-plan/entries", body: body)
+    }
+
+    /// The last few days' meals a slot could be leftovers of, newest first. An older server has no
+    /// such call: nothing offered, and no error.
+    func leftoverChoices(household: UUID, date: String, meal: MealType) async -> [MealPlanEntry] {
+        (try? await get("/api/households/\(household.uuidString)/meal-plan/leftovers?date=\(date)&mealType=\(meal.rawValue)")) ?? []
     }
 
     /// Changes one planned dish: its servings, time or extras.
