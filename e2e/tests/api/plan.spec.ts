@@ -59,3 +59,44 @@ test('plan-status says where each meal stands with the shopping, and changes not
     }),
   ).toBe(400);
 });
+
+test('leftovers: chosen from the last few days, on the plan, and never on the list — as the phone and web send them', async () => {
+  const hh = await newHousehold();
+  const owner = await admin();
+  const chili = await newRecipe(hh.id, 'Chili', [{ name: 'beans', qty: 2, unit: 'can' }]);
+  const base = `/api/households/${hh.id}/meal-plan`;
+  const cooked = await plan(hh.id, isoDate(1), 'DINNER', { recipeId: chili.id, servings: 6 });
+  await call('POST', `/api/households/${hh.id}/grocery-list/add-all?start=${isoDate(1)}&end=${isoDate(1)}`, { token: owner.token });
+
+  // The fill sheet asks what the next day's lunch could be leftovers of.
+  const choices = await call('GET', `${base}/leftovers?date=${isoDate(2)}&mealType=LUNCH`, { token: owner.token });
+  expect(choices.map((c: any) => c.id)).toEqual([cooked.id]);
+
+  // And sends only which meal: the dish and its servings come from it.
+  const lunch = await call('POST', `${base}/entries`, {
+    token: owner.token, body: { date: isoDate(2), mealType: 'LUNCH', leftoversOf: cooked.id },
+  });
+  expect(lunch).toMatchObject({
+    recipeId: chili.id, servings: 6, leftovers: true, leftoversFromDate: isoDate(1), leftoversFromMeal: 'DINNER',
+  });
+  expect(cooked.leftovers).toBe(false);
+
+  await call('POST', `/api/households/${hh.id}/grocery-list/add-all?start=${isoDate(2)}&end=${isoDate(2)}`, { token: owner.token });
+  const list = await call('GET', `/api/households/${hh.id}/grocery-list`, { token: owner.token });
+  expect(list.map((i: any) => `${i.name} ${i.quantity}`)).toEqual(['beans 3']);
+  const status = await call('GET', `/api/households/${hh.id}/grocery-list/plan-status?start=${isoDate(2)}&end=${isoDate(2)}`, {
+    token: owner.token,
+  });
+  expect(status).toEqual([expect.objectContaining({ entryId: lunch.id, status: 'LEFTOVERS', toAdd: [] })]);
+
+  // The options sheet's switch: off makes it a meal to shop for, on again takes it back off.
+  expect((await call('PATCH', `${base}/entries/${lunch.id}`, { token: owner.token, body: { leftovers: false } })))
+    .toMatchObject({ leftovers: false, leftoversFromDate: null });
+  expect((await call('PATCH', `${base}/entries/${lunch.id}`, { token: owner.token, body: { leftovers: true } })).leftovers)
+    .toBe(true);
+
+  // Leftovers of a meal not cooked yet are refused.
+  expect(await statusOf('POST', `${base}/entries`, {
+    token: owner.token, body: { date: isoDate(0), mealType: 'DINNER', leftoversOf: cooked.id },
+  })).toBe(400);
+});

@@ -10,7 +10,9 @@ import com.gehan.mealplanner.dto.GroceryListDtos.AddRecipeRequest;
 import com.gehan.mealplanner.dto.GroceryListDtos.GroceryListItemResponse;
 import com.gehan.mealplanner.dto.GroceryListDtos.PutAwayRequest;
 import com.gehan.mealplanner.dto.HouseholdDtos.CreateHouseholdRequest;
+import com.gehan.mealplanner.dto.GroceryListDtos.PlannedShoppingResponse;
 import com.gehan.mealplanner.dto.MealPlanDtos.AddMealPlanEntryRequest;
+import com.gehan.mealplanner.dto.MealPlanDtos.MealPlanEntryResponse;
 import com.gehan.mealplanner.dto.MealPlanDtos.UpdateMealPlanEntryRequest;
 import com.gehan.mealplanner.dto.RecipeDtos.RecipeIngredientRequest;
 import com.gehan.mealplanner.dto.RecipeDtos.RecipeRequest;
@@ -700,6 +702,73 @@ class GroceryListDatabaseTest {
         assertThat(recipeService.get(pasta.id(), home, me.getId()).ingredients())
                 .extracting(i -> i.ingredientName())
                 .contains("minced garlic", "garlic cloves, minced");
+    }
+
+    // --- Leftovers ---
+
+    @Test
+    void leftoversAreOnThePlanButNeverOnTheList() {
+        RecipeResponse chili = recipe("Chili", 4, need("beans", "2", "can"));
+        UUID monday = plan(chili, MONDAY, 4);
+        addWeek();
+
+        MealPlanEntryResponse tuesday = mealPlanService.add(home, me.getId(), new AddMealPlanEntryRequest(
+                MONDAY.plusDays(1), MealType.DINNER, null, null, null, null, null, null, null, null, null, monday));
+        addWeek();
+
+        assertThat(tuesday).extracting(MealPlanEntryResponse::recipeId, MealPlanEntryResponse::leftovers,
+                        MealPlanEntryResponse::leftoversFromDate, MealPlanEntryResponse::leftoversFromMeal,
+                        MealPlanEntryResponse::servings)
+                .containsExactly(chili.id(), true, MONDAY, MealType.DINNER, 4);
+        assertThat(amountOf("beans")).isEqualByComparingTo("2");
+        assertThat(groceryListService.planStatus(home, me.getId(), MONDAY, SUNDAY))
+                .extracting(PlannedShoppingResponse::status).containsExactly("ON_LIST", "LEFTOVERS");
+        // Its own button adds nothing either.
+        assertThat(groceryListService.addMealToList(home, tuesday.id(), me.getId())).isEmpty();
+    }
+
+    @Test
+    void aMealMarkedLeftoversTakesBackWhatItPutOnTheList() {
+        RecipeResponse chili = recipe("Chili", 4, need("beans", "2", "can"));
+        plan(chili, MONDAY, 4);
+        UUID tuesday = plan(chili, MONDAY.plusDays(1), 4);
+        addWeek();
+        assertThat(amountOf("beans")).isEqualByComparingTo("4");
+
+        mealPlanService.update(tuesday, me.getId(), new UpdateMealPlanEntryRequest(null, null, null, null, null,
+                null, null, null, null, true));
+        addWeek();
+        assertThat(amountOf("beans")).isEqualByComparingTo("2");
+
+        // And back to a meal to shop for.
+        mealPlanService.update(tuesday, me.getId(), new UpdateMealPlanEntryRequest(null, null, null, null, null,
+                null, null, null, null, false));
+        addWeek();
+        assertThat(amountOf("beans")).isEqualByComparingTo("4");
+    }
+
+    @Test
+    void leftoversCanBeOfTheLastFewDaysCookingOnly() {
+        RecipeResponse salad = recipe("Salad", 2, need("lettuce", "1", null));
+        RecipeResponse chili = recipe("Chili", 4, need("beans", "2", "can"));
+        RecipeResponse soup = recipe("Soup", 4, need("leek", "2", null));
+        plan(soup, MONDAY.minusDays(6), 4);
+        mealPlanService.add(home, me.getId(), new AddMealPlanEntryRequest(MONDAY, MealType.LUNCH, salad.id(), null,
+                null, null, 2, null, null));
+        UUID dinner = plan(chili, MONDAY, 4);
+        mealPlanService.add(home, me.getId(), new AddMealPlanEntryRequest(MONDAY.plusDays(1), MealType.BREAKFAST,
+                null, null, "eggs-" + tag, null, null, null, null));
+        mealPlanService.add(home, me.getId(), new AddMealPlanEntryRequest(MONDAY.plusDays(1), MealType.LUNCH,
+                null, null, null, null, null, null, null, null, null, dinner));
+
+        assertThat(mealPlanService.leftoverChoices(home, me.getId(), MONDAY.plusDays(1), MealType.DINNER))
+                .extracting(MealPlanEntryResponse::recipeName).containsExactly("Chili", "Salad");
+        assertThat(mealPlanService.leftoverChoices(home, me.getId(), MONDAY, MealType.DINNER))
+                .extracting(MealPlanEntryResponse::recipeName).containsExactly("Salad");
+        assertThatThrownBy(() -> mealPlanService.add(home, me.getId(), new AddMealPlanEntryRequest(MONDAY.minusDays(1),
+                MealType.DINNER, null, null, null, null, null, null, null, null, null, dinner)))
+                .isInstanceOfSatisfying(ResponseStatusException.class,
+                        e -> assertThat(e.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST));
     }
 
     // --- Without a cupboard ---

@@ -66,6 +66,23 @@ test('the paste tab starts filed in the drawer it was opened from too', async ({
   await expect(page.getByRole('button', { name: 'Breakfast', exact: true })).toHaveAttribute('aria-pressed', 'true');
 });
 
+test('a paste keeps the servings it says, and the stepper only fills in when it says none', async ({ page }) => {
+  const hh = await newHousehold();
+  await signIn(page, hh.owner, hh.id);
+  await page.goto('/recipes/new?section=DINNER');
+  await newRecipeWay(page, 'Paste from an AI');
+  // Asked for 3 here, but the answer was for 6: its amounts are for 6, so 6 it is.
+  await page.getByRole('button', { name: 'Fewer servings' }).click();
+  await page.getByPlaceholder(/Name:/).fill('Name: Chili\nServings: 6\n\nIngredients:\n2 | cans | beans\n\nInstructions:\n1. Cook it.');
+  await page.getByRole('button', { name: 'Read into form' }).click();
+  await expect(page.getByLabel('Serves')).toHaveValue('6');
+
+  await page.getByRole('button', { name: 'Cancel' }).click();
+  await page.getByPlaceholder(/Name:/).fill('Porridge\n\nIngredients\n1 cup oats\n\nInstructions\nCook it.');
+  await page.getByRole('button', { name: 'Read into form' }).click();
+  await expect(page.getByLabel('Serves')).toHaveValue('3');
+});
+
 test('the drawer can be changed before saving, and Cancel returns to the drawer with its tags', async ({ page }) => {
   const hh = await newHousehold();
   await signIn(page, hh.owner, hh.id);

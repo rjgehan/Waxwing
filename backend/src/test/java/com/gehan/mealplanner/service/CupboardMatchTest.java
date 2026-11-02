@@ -27,12 +27,20 @@ class CupboardMatchTest {
     }
 
     @Test
-    void capitalsPunctuationBracketsAndAPluralDoNotMatter() {
-        CupboardMatch match = CupboardMatch.of(List.of(item("peppercorns", "black peppercorn (whole)")));
+    void capitalsPunctuationAndAPluralDoNotMatter() {
+        CupboardMatch match = CupboardMatch.of(List.of(item("peppercorns", "black peppercorn")));
 
         assertThat(match.find("Peppercorn")).isPresent();
         assertThat(match.find("black peppercorns")).isPresent();
         assertThat(match.find("black-peppercorn")).isPresent();
+        assertThat(match.find("Black Peppercorns!")).isPresent();
+    }
+
+    @Test
+    void wordsInBracketsCount() {
+        // A tin is not the dried kind: "chickpeas (tin)" is its own item.
+        assertThat(CupboardMatch.of(List.of(item("chickpeas"))).find("chickpeas (tin)")).isEmpty();
+        assertThat(CupboardMatch.of(List.of(item("chickpeas (tin)"))).find("Chickpeas tin")).isPresent();
     }
 
     @Test
