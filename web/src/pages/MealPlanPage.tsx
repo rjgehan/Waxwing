@@ -77,7 +77,7 @@ export default function MealPlanPage() {
   const horizonEnd = addDays(today, horizonDays - 1);
 
   /*
-   * One load covers the whole page: the month on screen (Monday-first, and run on to the end
+   * One load covers the whole page: the month on screen (Sunday-first, and run on to the end
    * of the planning window when it spills into next month), and the window itself, which runs
    * from today and can start before this month's grid or end after it.
    */

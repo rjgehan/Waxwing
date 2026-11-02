@@ -371,6 +371,14 @@ export interface MealPlanEntry {
   savedLinkUrl?: string | null;
   savedLinkSource?: SavedLinkSource | null;
   savedLinkImageId?: string | null;
+  /**
+   * Eaten from something cooked before — yesterday's dinner again today. On the Plan like any
+   * meal, but nothing is ever bought for it. Absent on an older server.
+   */
+  leftovers?: boolean;
+  /** The day and meal it was left over from, when somebody said. */
+  leftoversFromDate?: string | null;
+  leftoversFromMeal?: MealType | null;
 }
 
 export type SavedLinkSource = 'TIKTOK' | 'INSTAGRAM' | 'WEB';

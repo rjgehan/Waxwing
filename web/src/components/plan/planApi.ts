@@ -6,12 +6,13 @@ import { isoDate, type PlannedShopping, type ShoppingMap } from './planModel';
  The Plan's calls, in one place. Nothing new on the server except plan-status, which only reads.
 */
 
-/** What can go in a slot: a recipe, a single food, a saved link, or a place. */
+/** What can go in a slot: a recipe, a single food, a saved link, a place, or another meal's leftovers. */
 export type Filling =
   | { recipeId: string; includedOptionalIngredientIds?: string[] }
   | { itemName: string }
   | { savedLinkId: string }
-  | { placeId: string; time?: string | null };
+  | { placeId: string; time?: string | null }
+  | { leftoversOf: string };
 
 export async function planRange(householdId: string, start: Date, end: Date): Promise<MealPlanEntry[]> {
   return api<MealPlanEntry[]>(
@@ -30,6 +31,21 @@ export async function shoppingFor(householdId: string, start: Date, end: Date): 
     return new Map(all.map((s) => [s.entryId, s]));
   } catch {
     return null;
+  }
+}
+
+/**
+ * The last few days' meals a slot could be leftovers of, newest first. An older server has no such
+ * call: no leftovers offered, and no error.
+ */
+export async function leftoverChoices(householdId: string, date: string, meal: MealType): Promise<MealPlanEntry[]> {
+  try {
+    return await api<MealPlanEntry[]>(
+      'GET',
+      `/api/households/${householdId}/meal-plan/leftovers?date=${date}&mealType=${meal}`,
+    );
+  } catch {
+    return [];
   }
 }
 

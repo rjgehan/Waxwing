@@ -344,7 +344,7 @@ function OtherNames({
             }
           }}
           placeholder="Another name — sea salt"
-          aria-label="Another name"
+          aria-label="Also known as"
         />
         <button
           type="button"

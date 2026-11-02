@@ -3,9 +3,9 @@ import { entryLabel } from '../../utils/planEntry';
 import { sourceLabel } from '../../utils/savedLinks';
 import { isSafeLink } from '../../utils/videoLink';
 import { useFeatures } from '../../utils/features';
-import { List, NoteBox, Row, Sheet, Tile } from '../ui';
+import { List, NoteBox, Row, Sheet, Tile, Toggle } from '../ui';
 import MealPicture from './MealPicture';
-import { fromIso, mealTitle, slotTime, type PlannedShopping } from './planModel';
+import { fromIso, leftoversLine, mealTitle, slotTime, type PlannedShopping } from './planModel';
 import { ServingsStepper, useDraftServings } from './PlanBits';
 
 /**
@@ -14,7 +14,8 @@ import { ServingsStepper, useDraftServings } from './PlanBits';
  * servings, its time, which optional extras, put it on the list, open it, take it off.
  *
  * A single food like "eggs" gets its own Add to groceries here: planning eggs does not mean
- * needing eggs, so the week's button leaves it alone.
+ * needing eggs, so the week's button leaves it alone. A dish eaten from something cooked before
+ * is switched to Leftovers here, and then has nothing to add.
  */
 export default function MealOptionsSheet({
   entry,
@@ -29,6 +30,7 @@ export default function MealOptionsSheet({
   onTime,
   onExtras,
   onAddToGroceries,
+  onLeftovers,
   onOpenRecipe,
   onRemove,
   onClose,
@@ -45,6 +47,8 @@ export default function MealOptionsSheet({
   onTime: () => void;
   onExtras: () => void;
   onAddToGroceries: () => void;
+  /** Marks it eaten from something cooked before — nothing bought for it — or not. */
+  onLeftovers?: (on: boolean) => void;
   /** To the recipe — or its editor, for one that is only a name so far. */
   onOpenRecipe: () => void;
   onRemove: () => void;
@@ -58,6 +62,8 @@ export default function MealOptionsSheet({
   const chosen = optional.filter((i) => entry.includedOptionalIngredientIds.includes(i.id)).length;
   const label = entryLabel(entry) ?? '';
   const menu = place && isSafeLink(place.menuUrl) ? place.menuUrl! : null;
+  // Only from a server that knows leftovers, and not for a single food, which is never shopped for anyway.
+  const canBeLeftovers = onLeftovers && entry.leftovers !== undefined && !entry.itemName && !entry.recipeDeleted;
 
   return (
     <Sheet
@@ -104,7 +110,20 @@ export default function MealOptionsSheet({
               disabled={busy}
             />
           )}
-          {entry.recipeId && !entry.needsIngredients && (
+          {canBeLeftovers && (
+            <Row
+              role="switch"
+              aria-checked={Boolean(entry.leftovers)}
+              aria-label="Leftovers"
+              lead={<Tile icon="repeat" tone="herb" size={34} />}
+              title="Leftovers"
+              subtitle={entry.leftovers ? leftoversLine(entry).replace(/^Leftovers · /, 'Nothing to buy · ') : 'Eaten from something cooked before'}
+              end={<Toggle on={Boolean(entry.leftovers)} />}
+              onClick={() => onLeftovers!(!entry.leftovers)}
+              disabled={busy}
+            />
+          )}
+          {entry.recipeId && !entry.needsIngredients && !entry.leftovers && (
             <Row
               lead={<Tile icon="cart" tone="accent" size={34} />}
               title="Add to groceries"

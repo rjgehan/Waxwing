@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { imageUrl } from '../../api/client';
-import type { CupboardItem, Place, Recipe, SavedLink } from '../../api/types';
+import type { CupboardItem, MealPlanEntry, Place, Recipe, SavedLink } from '../../api/types';
 import { useHousehold } from '../../household/HouseholdContext';
 import { filingLine, isMain, isMainOrSideTag, isSide } from '../../utils/tags';
 import { isVideo, sourceLabel } from '../../utils/savedLinks';
@@ -24,7 +24,8 @@ import {
   Toggle,
   type Tone,
 } from '../ui';
-import { dishIcon, slotTime } from './planModel';
+import { dayBefore, dishIcon, mealTitle, slotTime } from './planModel';
+import { entryLabel } from '../../utils/planEntry';
 
 const PLACE_TONES: Tone[] = ['plum', 'accent', 'mustard', 'herb', 'sky'];
 
@@ -33,7 +34,8 @@ export type SlotChoice =
   | { kind: 'item'; name: string }
   | { kind: 'link'; link: SavedLink }
   | { kind: 'create'; name: string }
-  | { kind: 'place'; place: Place | { name: string }; time: string | null };
+  | { kind: 'place'; place: Place | { name: string }; time: string | null }
+  | { kind: 'leftovers'; entry: MealPlanEntry };
 
 /**
  * Filling a slot (the mockup's 2.5 and 2.7): a screen of its own, "Dinner · Thu 1" across the
@@ -50,6 +52,8 @@ export default function FillSlot({
   savedLinks,
   cupboard,
   places,
+  leftovers = [],
+  date,
   dayName,
   startOut,
   current,
@@ -66,6 +70,10 @@ export default function FillSlot({
   savedLinks: SavedLink[];
   cupboard: CupboardItem[];
   places: Place[];
+  /** The last few days' meals this slot could be leftovers of, newest first. */
+  leftovers?: MealPlanEntry[];
+  /** The slot's own day, "2026-11-02", to say how long ago a leftover was cooked. */
+  date?: string;
   /** "Friday", beside the time when eating out. */
   dayName: string;
   /** Opens on Eat out — swapping a night out keeps you there. */
@@ -134,6 +142,8 @@ export default function FillSlot({
             recipes={recipes}
             savedLinks={savedLinks}
             cupboard={cupboard}
+            leftovers={leftovers}
+            date={date}
             current={current ?? null}
             busy={busy}
             onChoose={onChoose}
@@ -165,6 +175,8 @@ function EatIn({
   recipes,
   savedLinks,
   cupboard,
+  leftovers,
+  date,
   current,
   busy,
   onChoose,
@@ -173,6 +185,8 @@ function EatIn({
   recipes: Recipe[];
   savedLinks: SavedLink[];
   cupboard: CupboardItem[];
+  leftovers: MealPlanEntry[];
+  date?: string;
   current: string | null;
   busy: boolean;
   onChoose: (choice: SlotChoice) => void;
@@ -267,6 +281,23 @@ function EatIn({
 
       <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 pb-safe-8">
         <div className="flex flex-col gap-3.5 pb-6">
+          {/* Yesterday's dinner again: first, and only before anyone searches or filters. */}
+          {!q && k === 'all' && leftovers.length > 0 && (
+            <Group label="Leftovers">
+              {leftovers.map((e) => (
+                <Row
+                  key={e.id}
+                  disabled={busy}
+                  onClick={() => onChoose({ kind: 'leftovers', entry: e })}
+                  lead={<Tile icon="repeat" tone="herb" size={40} />}
+                  title={entryLabel(e)}
+                  titleClassName="font-medium"
+                  subtitle={`${date ? dayBefore(e.date, date) : e.date} · ${mealTitle(e.mealType)} · nothing to buy`}
+                />
+              ))}
+            </Group>
+          )}
+
           {shownRecipes.length > 0 && (
             <Group label="Recipes">
               {shownRecipes.map((r) => (

@@ -37,9 +37,9 @@ export function addDays(d: Date, days: number): Date {
 export function startOfMonth(d: Date): Date {
   return new Date(d.getFullYear(), d.getMonth(), 1);
 }
-/** Monday-first, as the mockup's calendar is: 0 for a Monday, 6 for a Sunday. */
-export function mondayIndex(d: Date): number {
-  return (d.getDay() + 6) % 7;
+/** Sunday-first, as a US calendar is: 0 for a Sunday, 6 for a Saturday. */
+export function sundayIndex(d: Date): number {
+  return d.getDay();
 }
 
 export function mealTitle(meal: MealType): string {
@@ -91,7 +91,7 @@ export function timeOf(dishes: MealPlanEntry[]): string | null {
 /** What the server says a meal means for the shopping (GET …/grocery-list/plan-status). */
 export interface PlannedShopping {
   entryId: string;
-  status: 'ON_LIST' | 'NOT_ON_LIST' | 'IN_CUPBOARD' | 'NO_INGREDIENTS' | 'EAT_OUT' | 'LINK' | 'DELETED';
+  status: 'ON_LIST' | 'NOT_ON_LIST' | 'IN_CUPBOARD' | 'NO_INGREDIENTS' | 'EAT_OUT' | 'LINK' | 'DELETED' | 'LEFTOVERS';
   toAdd: string[];
   needs: number;
   inCupboard: number;
@@ -99,9 +99,25 @@ export interface PlannedShopping {
 
 export type ShoppingMap = Map<string, PlannedShopping>;
 
-/** Whether the week's button would put anything on the list for this dish. */
+/** Whether the week's button would put anything on the list for this dish. Leftovers never do. */
 export function contributes(entry: MealPlanEntry): boolean {
-  return Boolean(entry.recipeId) && !entry.needsIngredients;
+  return Boolean(entry.recipeId) && !entry.needsIngredients && !entry.leftovers;
+}
+
+/** "Today", "Yesterday", "Sunday": the day a meal was, seen from the day it is eaten again. */
+export function dayBefore(from: string, eaten: string): string {
+  const days = Math.round((fromIso(eaten).getTime() - fromIso(from).getTime()) / 86_400_000);
+  if (days === 0) return 'Today';
+  if (days === 1) return 'Yesterday';
+  return fromIso(from).toLocaleDateString(undefined, { weekday: 'long' });
+}
+
+/** "Leftovers · from yesterday's dinner", or just "Leftovers" when nobody said from what. */
+export function leftoversLine(entry: MealPlanEntry): string {
+  if (!entry.leftoversFromDate || !entry.leftoversFromMeal) return 'Leftovers';
+  const day = dayBefore(entry.leftoversFromDate, entry.date);
+  const whose = day === 'Today' ? 'earlier' : `${day === 'Yesterday' ? 'yesterday' : day}’s`;
+  return `Leftovers · from ${whose} ${mealTitle(entry.leftoversFromMeal).toLowerCase()}`;
 }
 
 export interface SlotMark {
@@ -118,6 +134,8 @@ export interface SlotMark {
  * Null while the shopping is still being worked out, or for a slot with nothing to say.
  */
 export function slotMark(dishes: MealPlanEntry[], shopping: ShoppingMap | null): SlotMark | null {
+  // Bought for the meal they came from — a takeaway's second half too.
+  if (dishes.length > 0 && dishes.every((d) => d.leftovers)) return { label: 'Leftovers', tone: 'neutral', icon: 'repeat', canAdd: false };
   if (dishes.some((d) => d.placeId)) return { label: 'Eat out', tone: 'plum', icon: 'utensils', canAdd: false };
   if (!shopping) return null;
   const cooked = dishes.filter(contributes);
@@ -187,6 +205,7 @@ export function dishIcon(
  */
 export function dishDetail(entry: MealPlanEntry, recipe: Recipe | undefined, cupboard = true): string {
   if (entry.recipeDeleted) return entry.savedLinkDeleted ? 'Saved link was deleted' : 'Recipe was deleted';
+  if (entry.leftovers) return leftoversLine(entry);
   if (entry.placeId) return 'Eat out';
   if (entry.savedLinkId) return `Saved link · ${sourceLabel({ source: entry.savedLinkSource, url: entry.savedLinkUrl })}`;
   if (entry.itemName) {

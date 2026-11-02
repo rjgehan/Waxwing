@@ -13,7 +13,7 @@ import MealOptionsSheet from './MealOptionsSheet';
 import MealPicture from './MealPicture';
 import NewRecipeSheet from './NewRecipeSheet';
 import { ExtrasSheet, ServingsStepper, TimeSheet, useDraftServings } from './PlanBits';
-import { addMealToGroceries, fillSlot, patchEntry, removeEntry, type Filling } from './planApi';
+import { addMealToGroceries, fillSlot, leftoverChoices, patchEntry, removeEntry, type Filling } from './planApi';
 import {
   BASE_MEALS,
   contributes,
@@ -99,6 +99,18 @@ export default function DaySheet({
   const [error, setError] = useState<string | null>(null);
   const [savedLinks, setSavedLinks] = useState<SavedLink[]>([]);
   const [cupboard, setCupboard] = useState<CupboardItem[]>([]);
+  // What the slot being filled could be leftovers of — asked for each slot, as it opens.
+  const [leftovers, setLeftovers] = useState<MealPlanEntry[]>([]);
+  const fillingMeal = fill && !fill.replacing ? fill.meal : null;
+  useEffect(() => {
+    setLeftovers([]);
+    if (!fillingMeal) return;
+    let live = true;
+    leftoverChoices(householdId, date, fillingMeal).then((found) => live && setLeftovers(found));
+    return () => {
+      live = false;
+    };
+  }, [householdId, date, fillingMeal]);
 
   useEffect(() => {
     // The picker's Cupboard chip and rows, for a household that keeps one; none, and no fetch, otherwise.
@@ -168,6 +180,8 @@ export default function DaySheet({
 
   async function choose(choice: SlotChoice) {
     switch (choice.kind) {
+      case 'leftovers':
+        return put({ leftoversOf: choice.entry.id });
       case 'recipe':
         return pickRecipe(choice.recipe);
       case 'item':
@@ -423,6 +437,12 @@ export default function DaySheet({
             if (r) setExtras({ recipe: r, initial: optionsEntry.includedOptionalIngredientIds, editing: optionsEntry });
           }}
           onAddToGroceries={() => addToGroceries([optionsEntry], entryLabel(optionsEntry) ?? 'It')}
+          onLeftovers={(on) =>
+            run(async () => {
+              await patchEntry(householdId, optionsEntry.id, { leftovers: on });
+              await onChanged();
+            })
+          }
           onOpenRecipe={() =>
             navigate(
               optionsEntry.needsIngredients ? `/recipes/${optionsEntry.recipeId}/edit` : `/recipes/${optionsEntry.recipeId}`,
@@ -448,6 +468,8 @@ export default function DaySheet({
           savedLinks={savedLinks}
           cupboard={cupboard}
           places={places}
+          leftovers={fill.replacing ? [] : leftovers}
+          date={date}
           dayName={day.toLocaleDateString(undefined, { weekday: 'long' })}
           startOut={fill.replacing?.placeId ? { placeId: fill.replacing.placeId, time: fill.replacing.time } : undefined}
           current={fill.replacing ? fill.replacing.recipeId ?? fill.replacing.savedLinkId : null}

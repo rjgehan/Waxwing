@@ -3,16 +3,16 @@ import { isPlanned } from '../../utils/planEntry';
 import { Icon } from '../icons';
 import { Button, cx, IconButton } from '../ui';
 import MealPicture from './MealPicture';
-import { addDays, isoDate, mondayIndex, startOfMonth } from './planModel';
+import { addDays, isoDate, startOfMonth, sundayIndex } from './planModel';
 
-const WEEKDAYS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+const WEEKDAYS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 
 /**
  * The month on a card (the mockup's 2.1): the planning window tinted green so "we plan a week
  * ahead" is something you can see, a dot under every day with something on it, today in tomato.
  * Every day is a button — that is how an empty Thursday gets its dinner.
  *
- * The weeks start on Monday, as the mockup's do. Days before the 1st are left blank; the grid
+ * The weeks start on Sunday, as a US calendar's do. Days before the 1st are left blank; the grid
  * runs on past the end of the month as far as the planning window does, so the window is never
  * cut off at a month's edge. On a computer each square is wide enough to show what is for
  * dinner rather than only that something is.
@@ -42,10 +42,10 @@ export default function PlanCalendar({
   const first = startOfMonth(monthCursor);
   const last = new Date(monthCursor.getFullYear(), monthCursor.getMonth() + 1, 0);
   const horizonEnd = addDays(today, horizonDays - 1);
-  const lead = mondayIndex(first);
+  const lead = sundayIndex(first);
   // To the end of the week the month ends in — or of the week the window ends in, if later.
   const runTo = horizonEnd > last && horizonEnd.getTime() - last.getTime() < 40 * 86_400_000 ? horizonEnd : last;
-  const end = addDays(runTo, 6 - mondayIndex(runTo));
+  const end = addDays(runTo, 6 - sundayIndex(runTo));
   const days: Date[] = [];
   for (let d = first; d <= end; d = addDays(d, 1)) days.push(d);
   const thisMonth = monthCursor.getMonth() === today.getMonth() && monthCursor.getFullYear() === today.getFullYear();

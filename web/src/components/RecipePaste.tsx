@@ -68,9 +68,9 @@ export function PasteFromAi({
       return;
     }
     try {
-      const parsed = parseRecipeText(text);
-      // The serving count you asked for wins over whatever the reply claims.
-      const read = { ...parsed, servings };
+      // The amounts are for the servings the paste itself says — the question's, if it was
+      // copied, or the AI's own if it was asked another way. The stepper only fills a gap.
+      const read = parseRecipeText(text, servings);
       if (onDraft) onDraft(read);
       else setDraft(read);
     } catch (err) {

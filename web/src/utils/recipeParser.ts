@@ -63,8 +63,11 @@ function stripMarker(line: string): string {
  * takes what it can find and ignores the rest: code fences, bold, bullets of any kind, numbered
  * steps, a chatty line before or after. The recipe goes into the form, not straight into the
  * catalog, so anything it gets wrong is fixed there before saving.
+ *
+ * The recipe's own "Servings:" line says how many its amounts are for; `fallbackServings` is
+ * only for a paste that never says.
  */
-export function parseRecipeText(raw: string): RecipeDraft {
+export function parseRecipeText(raw: string, fallbackServings = 4): RecipeDraft {
   let text = raw.replace(/\r/g, '');
   // If the reply came in a code block, what matters is inside it.
   const fenced = text.match(/```[^\n]*\n([\s\S]*?)```/);
@@ -135,7 +138,7 @@ export function parseRecipeText(raw: string): RecipeDraft {
     instructions: steps.length ? steps.join('\n') : null,
     prepTimeMinutes: prep,
     cookTimeMinutes: cook,
-    servings: servings ?? 4,
+    servings: servings ?? fallbackServings,
     ingredients,
   };
 }
