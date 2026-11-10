@@ -20,7 +20,6 @@ test('sign in from the tap-your-name screen with the keypad', async ({ page }) =
   await page.getByRole('button', { name: username }).click();
   await expect(page.getByText('Pick a 4-digit PIN')).toBeVisible();
   for (const d of '24682468') await page.getByRole('button', { name: d, exact: true }).click();
-  // Exact: the sign-in screen's own "Waxwing" heading would otherwise match before it has gone.
   await expect(page.getByRole('heading', { name: 'Recipes', exact: true })).toBeVisible();
   // A PIN-only account is asked to move to email and password straight away.
   await expect(sheet(page).getByRole('heading', { name: 'Add an email and password' })).toBeVisible();
@@ -211,9 +210,9 @@ test('sign out lives in Settings, behind your initial, not in the header', async
   await page.getByRole('button', { name: 'Your account' }).click();
   await sheet(page).getByRole('button', { name: 'Sign out' }).click();
   // Back on the sign-in screen: the app's name and what it is for (web/src/brand.ts).
-  await expect(page.getByRole('heading', { name: 'Waxwing', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Breadbox', exact: true })).toBeVisible();
   await expect(page.getByText("Your family's recipes and one shared grocery list.")).toBeVisible();
-  await expect(page).toHaveTitle('Waxwing');
+  await expect(page).toHaveTitle('Breadbox');
 });
 
 test('the avatar opens Settings: your account, and the way into the household', async ({ page }) => {

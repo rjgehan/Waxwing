@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import { api, ApiError } from '../../api/client';
 import type { CupboardItem, Household } from '../../api/types';
+import { APP_NAME } from '../../brand';
 import { useHousehold, type KitchenChange } from '../../household/HouseholdContext';
 import { cupboardOn, planOn } from '../../utils/features';
 import { MACHINES, orderedMachines } from '../../utils/machines';
@@ -144,7 +145,7 @@ export default function KitchenSetup({ household: given, onClose }: { household:
           {step === 0 && (
             <>
               <Heading title="What's in your kitchen?">
-                Tap everything you have. Waxwing only suggests recipes you can make with them.
+                Tap everything you have. {APP_NAME} only suggests recipes you can make with them.
               </Heading>
               <MachineGrid selected={machines} onToggle={toggleMachine} />
               <p className="px-1 text-[0.8125rem] text-muted">You can change this any time in Household settings.</p>

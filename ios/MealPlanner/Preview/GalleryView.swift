@@ -318,7 +318,7 @@ struct GalleryView: View {
                     entry("Ideas board — as the mockup", "lightbulb") {
                         IdeasView(session: session, sample: SampleData.ideasMockup)
                     }
-                    entry("Share to Waxwing", "square.and.arrow.down") { prompts.share() }
+                    entry("Share to Breadbox", "square.and.arrow.down") { prompts.share() }
                     entry("Rewritten on device", "wand.and.stars") { prompts.rewritten() }
                 }
 

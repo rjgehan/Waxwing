@@ -37,7 +37,7 @@ struct KitchenScreen: View {
                 .disabled(!loaded)
                 // What the machines do: suggestions (Meal ideas, generated plans) only pick what they can
                 // make, and Can make filters a drawer or Global recipes to it. The web's words.
-                Text("Saved for your household. Waxwing only suggests recipes you can make with these, and Can make shows just those in a drawer or on Explore.")
+                Text("Saved for your household. Breadbox only suggests recipes you can make with these, and Can make shows just those in a drawer or on Explore.")
                     .font(.system(size: 13)).foregroundStyle(Palette.muted)
                     .fixedSize(horizontal: false, vertical: true)
                     .padding(.horizontal, 4)

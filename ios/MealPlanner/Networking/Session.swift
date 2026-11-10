@@ -162,7 +162,7 @@ final class Session {
             // the sign-in screen — which says why, and offers to scan an invite.
             await signOut()
             notice = "You're not in a household any more. Ask someone for an invite link to join one, "
-                + "or start your own on the Waxwing website."
+                + "or start your own on the Breadbox website."
         }
     }
 

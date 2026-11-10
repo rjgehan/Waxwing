@@ -178,7 +178,7 @@ test('the owner sees who has no email yet, and hands out a reset link that signs
   await phone.goto(url);
   await expect(phone.getByText("This link doesn't work any more")).toBeVisible();
   // They are signed in by now, so the way on is into the app, not to a sign-in screen.
-  await expect(phone.getByRole('button', { name: 'Open Waxwing' })).toBeVisible();
+  await expect(phone.getByRole('button', { name: 'Open Breadbox' })).toBeVisible();
   await theirs.close();
   expect((await loginWithEmail(email, 'fresh-password')).userId).toBe(m.userId);
 });

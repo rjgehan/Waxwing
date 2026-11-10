@@ -1,8 +1,4 @@
-<p align="center">
-  <img src="ios/MealPlanner/Assets.xcassets/AppIcon.appiconset/AppIcon.png" width="96" alt="Waxwing icon">
-</p>
-
-<h1 align="center">Waxwing</h1>
+<h1><picture><source media="(prefers-color-scheme: dark)" srcset="web/scripts/brand/logo/logo-horizontal-dark.svg"><img alt="Breadbox" src="web/scripts/brand/logo/logo-horizontal.svg" height="56"></picture></h1>
 
 <p align="center">
   <b>A family recipe box and one shared grocery list for the whole household.</b><br>
@@ -11,7 +7,7 @@
 
 <p align="center">
   <a href="docs/media/waxwing-demo.mp4">
-    <img src="docs/media/waxwing-demo.gif" width="720" alt="Waxwing in 21 seconds: recipes in drawers and tags, a live shared grocery list, and receipt scanning">
+    <img src="docs/media/waxwing-demo.gif" width="720" alt="Breadbox in 21 seconds: recipes in drawers and tags, a live shared grocery list, and receipt scanning">
   </a><br>
   <sub>21-second tour. Click it for the full video with sound.</sub>
 </p>
@@ -131,7 +127,7 @@ Dinner makes up whatever the day still needs. Recipes the kitchen's machines can
 ## How I built it
 
 I own the product, the architecture and quality:
-- I decided what Waxwing does, from how my family actually plans and shops.
+- I decided what Breadbox does, from how my family actually plans and shops.
 - I chose the stack and how the pieces fit together.
 - I review and test every change on real iPhones, with bug reports from the beta testers.
 

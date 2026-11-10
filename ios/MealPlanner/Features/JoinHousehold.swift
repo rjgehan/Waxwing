@@ -177,11 +177,11 @@ struct ScanInviteScreen: View {
             Image(systemName: denied ? "camera.badge.ellipsis" : "camera")
                 .font(.system(size: 44))
                 .foregroundStyle(.white.opacity(0.8))
-            Text(denied ? "Waxwing can't use the camera" : "No camera here")
+            Text(denied ? "Breadbox can't use the camera" : "No camera here")
                 .font(.title3.weight(.semibold))
                 .foregroundStyle(.white)
             Text(denied
-                 ? "To scan invite codes, turn on Camera for Waxwing in Settings. Or paste the link instead."
+                 ? "To scan invite codes, turn on Camera for Breadbox in Settings. Or paste the link instead."
                  : "This device has no camera to scan with. Paste the link somebody sent you instead.")
                 .multilineTextAlignment(.center)
                 .foregroundStyle(.white.opacity(0.75))
@@ -204,7 +204,7 @@ struct ScanInviteScreen: View {
         guard let link = AppLink.parse(text) else {
             problem = text.trimmingCharacters(in: .whitespaces).isEmpty
                 ? nil
-                : "That isn't a Waxwing invite. Point at the code on somebody's Invite card."
+                : "That isn't a Breadbox invite. Point at the code on somebody's Invite card."
             again += 1
             return
         }

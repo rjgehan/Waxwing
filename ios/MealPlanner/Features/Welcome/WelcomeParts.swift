@@ -7,9 +7,9 @@ import SwiftUI
  modes come for free.
  */
 
-/// The app's mark (`logo`): the waxwing and its berry (the app icon's bird, in one colour) on an
+/// The app's mark (`logo`): the loaf in its open box (the app icon's drawing, in one colour) on an
 /// accent tile, on a glow of its own colour. The tile follows the theme; the home-screen icon keeps
-/// its own aubergine.
+/// its own paper tile.
 struct AppMark: View {
     var size: CGFloat = 64
 
@@ -32,7 +32,7 @@ struct WelcomeBrand: View {
         VStack(alignment: .leading, spacing: 14) {
             AppMark()
             VStack(alignment: .leading, spacing: 6) {
-                Text("Waxwing").titleFont(32).foregroundStyle(Palette.text)
+                Text("Breadbox").titleFont(32).foregroundStyle(Palette.text)
                     .accessibilityAddTraits(.isHeader)
                 // The web's tagline, word for word: recipes and the list are the app; the Plan
                 // and the Cupboard are a household's to turn on.

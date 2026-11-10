@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <!--
+    Group 1 (back): the lid, flung open behind the loaf, and its front lip. Body: Default #A8402A,
+    Dark #B24A2E, Mono #505050. Lip: Default #EE6D4A, Dark #F07452, Mono #717171.
+    Its lower edge runs on behind the box, so no gap shows at the hinge.
+  -->
+  <path fill="#A8402A" d="M224.2 602.4L244.4 488.1L315.5 228.6Q323.7 199.5 354.2 204.9L781.6 280.3Q812.2 285.7 809.9 315.7L788 584L767.9 698.2Z"/>
+  <path fill="#EE6D4A" d="M315.5 228.6Q323.7 199.5 354.2 204.9L781.6 280.3Q812.2 285.7 809.9 315.7L806.7 345.6L308.4 257.8Z"/>
+</svg>

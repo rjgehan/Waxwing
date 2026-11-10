@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <!--
+    Group 3 (front): the box. Fill: Default #D4512E, Dark #DA5832, Mono #8E8E8E.
+  -->
+  <path fill="#D4512E" d="M232 572L792 572Q802 572 802 582L802 770Q802 814 758 814L266 814Q222 814 222 770L222 582Q222 572 232 572Z"/>
+</svg>
