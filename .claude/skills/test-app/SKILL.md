@@ -1,9 +1,9 @@
 ---
 name: test-app
-description: Run, drive, and regression-test Waxwing (formerly Meal Planner) locally at iPhone size — reset the dev database, run the Playwright API/UI suite in e2e/, capture the screen-inventory PDF, and test a patched copy side by side on other ports.
+description: Run, drive, and regression-test Breadbox (formerly Waxwing and Meal Planner) locally at iPhone size — reset the dev database, run the Playwright API/UI suite in e2e/, capture the screen-inventory PDF, and test a patched copy side by side on other ports.
 ---
 
-# Testing Waxwing
+# Testing Breadbox
 
 Everything runs against the **local** stack. Never point any of this at meals.gehan.cloud.
 

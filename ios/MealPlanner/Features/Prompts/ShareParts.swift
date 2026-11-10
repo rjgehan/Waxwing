@@ -1,14 +1,14 @@
 import SwiftUI
 
 /*
- The pieces of "Share to Waxwing" (mockup 7.6) and of a method rewritten on the phone (7.7):
+ The pieces of "Share to Breadbox" (mockup 7.6) and of a method rewritten on the phone (7.7):
  the app's name across the top, the card that says what arrived, the chips that file it, and the
  rewritten steps with their Undo and what was actually said.
 */
 
 // MARK: - 7.6
 
-/// The middle of the share sheet's bar: the app's waxwing on an accent tile, and its name.
+/// The middle of the share sheet's bar: the app's mark on an accent tile, and its name.
 struct ShareSheetTitle: View {
     var body: some View {
         HStack(spacing: 8) {
@@ -19,7 +19,7 @@ struct ShareSheetTitle: View {
                 .foregroundStyle(Palette.onAccent)
                 .frame(width: 26, height: 26)
                 .background(Palette.accent, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
-            Text("Waxwing").font(.system(size: 17, weight: .semibold)).foregroundStyle(Palette.text)
+            Text("Breadbox").font(.system(size: 17, weight: .semibold)).foregroundStyle(Palette.text)
         }
         .accessibilityElement(children: .combine)
         .accessibilityAddTraits(.isHeader)

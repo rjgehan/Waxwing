@@ -195,7 +195,7 @@ test('Join a household takes a pasted link to the invitation', async ({ page }) 
   await expect(join.getByRole('button', { name: 'Scan a QR code' })).toBeVisible();
   await join.getByLabel('Invite link').fill('https://example.com/not-an-invite');
   await join.getByRole('button', { name: 'Open', exact: true }).click();
-  await expect(join.getByText("That isn't a Waxwing invite link")).toBeVisible();
+  await expect(join.getByText("That isn't a Breadbox invite link")).toBeVisible();
 
   await join.getByLabel('Invite link').fill(`  https://meals.example/invite/${token}  `);
   await join.getByRole('button', { name: 'Open', exact: true }).click();

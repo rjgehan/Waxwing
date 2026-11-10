@@ -39,9 +39,9 @@ export function WelcomePage({
 }
 
 /**
- * The app's mark: the waxwing and its berry (the app icon's bird, in one colour) on an accent
+ * The app's mark: the loaf in its open box (the app icon's drawing, in one colour) on an accent
  * tile, lifted on a glow of its own colour. The tile follows the theme; the home-screen icon
- * keeps its own aubergine.
+ * keeps its own paper tile.
  */
 export function AppMark({ size = 64 }: { size?: number }) {
   return (
@@ -55,7 +55,7 @@ export function AppMark({ size = 64 }: { size?: number }) {
         boxShadow: '0 8px 20px rgb(var(--accent) / 0.35)',
       }}
     >
-      <Icon name="waxwing" size={Math.round(size * 0.6)} />
+      <Icon name="mark" size={Math.round(size * 0.6)} />
     </span>
   );
 }

@@ -1,4 +1,4 @@
-# Waxwing integration API
+# Breadbox integration API
 
 An HTTP API for other services on the home network — a dashboard, a wall display, a script.
 
@@ -10,11 +10,11 @@ Everything is JSON, `UTF-8`, no pagination (a family's recipe box is small).
 
 ## Turning it on
 
-Set one environment variable on the Waxwing server. Unset means the endpoints answer
+Set one environment variable on the Breadbox server. Unset means the endpoints answer
 `503` — off is the default, because this app is reachable from the public internet.
 
 ```yaml
-# docker-compose.override.yml on the Waxwing host
+# docker-compose.override.yml on the Breadbox host
 services:
   backend:
     environment:

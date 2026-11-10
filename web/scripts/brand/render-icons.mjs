@@ -1,28 +1,35 @@
 #!/usr/bin/env node
 /*
- * Renders every app-icon PNG from the one source drawing, app-icon.svg (1024, full bleed):
+ * Renders every app-icon PNG from the source drawings next to this file (1024, full bleed):
  *
  *   node web/scripts/brand/render-icons.mjs
  *
- *   ios/MealPlanner/Assets.xcassets/AppIcon.appiconset/AppIcon.png   1024  (Xcode makes the rest)
- *   web/public/icon-512.png                                           512
- *   web/public/icon-192.png                                           192
- *   web/public/apple-touch-icon.png                                   180
+ *   app-icon.svg        -> ios/MealPlanner/Assets.xcassets/AppIcon.appiconset/AppIcon.png   1024  (Xcode makes the rest)
+ *   app-icon-dark.svg   -> ios/MealPlanner/Assets.xcassets/AppIcon.appiconset/AppIcon-Dark.png    1024, transparent
+ *   app-icon-tinted.svg -> ios/MealPlanner/Assets.xcassets/AppIcon.appiconset/AppIcon-Tinted.png  1024, grayscale
+ *   app-icon.svg        -> web/public/icon-512.png                                        512
+ *   app-icon.svg        -> web/public/icon-192.png                                        192
+ *   app-icon.svg        -> web/public/apple-touch-icon.png                                180
+ *   favicon.svg         -> web/public/favicon.svg                                         (copied as is)
  *
  * Only a headless Chrome or Edge is needed (no sharp, no resvg): each size is a tiny HTML page
  * holding the SVG at exactly N×N, screenshotted in an N×N window at device scale 1. Set BROWSER
  * to the browser's executable if it isn't in the usual place.
  *
  * The App Store rejects an app icon with an alpha channel, and iOS paints a transparent touch
- * icon black, so every PNG must be opaque RGB. Chromium normally writes RGB already; if a
- * build writes RGBA, the alpha is dropped with ffmpeg when it is installed, or by re-encoding
- * the PNG here otherwise (the drawing has a full-bleed tile, so there is nothing to lose).
+ * icon black, so every PNG except the Dark one must be opaque RGB. Chromium normally writes RGB
+ * already; if a build writes RGBA, the alpha is dropped with ffmpeg when it is installed, or by
+ * re-encoding the PNG here otherwise (those drawings have a full-bleed tile, so nothing is lost).
+ * The Dark appearance is the opposite: it has no tile and must keep its alpha, so iOS can put
+ * its own dark background behind the box. It is rendered on a transparent page.
  *
  * glyph.svg next to this file is the one-colour mark used inside the apps (web icons.tsx
- * 'waxwing', iPhone AppGlyph.imageset in both asset catalogs). Change it there by hand.
+ * 'mark', iPhone AppGlyph.imageset in both asset catalogs, filled #000000 there). Change those
+ * by hand. icon-layers/ holds the same drawing split for Icon Composer, and logo/ the logo
+ * (BRAND.md); neither is rendered here.
  */
+import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import { execFileSync, spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -30,13 +37,16 @@ import { deflateSync, inflateSync } from 'node:zlib';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const repo = join(here, '..', '..', '..');
-const source = readFileSync(join(here, 'app-icon.svg'), 'utf8');
+const iconSet = join(repo, 'ios', 'MealPlanner', 'Assets.xcassets', 'AppIcon.appiconset');
 
+/** source: the drawing next to this file; alpha: keep the transparency (the Dark appearance only). */
 const OUTPUTS = [
-  { size: 1024, file: join(repo, 'ios', 'MealPlanner', 'Assets.xcassets', 'AppIcon.appiconset', 'AppIcon.png') },
-  { size: 512, file: join(repo, 'web', 'public', 'icon-512.png') },
-  { size: 192, file: join(repo, 'web', 'public', 'icon-192.png') },
-  { size: 180, file: join(repo, 'web', 'public', 'apple-touch-icon.png') },
+  { size: 1024, source: 'app-icon.svg', file: join(iconSet, 'AppIcon.png') },
+  { size: 1024, source: 'app-icon-dark.svg', file: join(iconSet, 'AppIcon-Dark.png'), alpha: true },
+  { size: 1024, source: 'app-icon-tinted.svg', file: join(iconSet, 'AppIcon-Tinted.png') },
+  { size: 512, source: 'app-icon.svg', file: join(repo, 'web', 'public', 'icon-512.png') },
+  { size: 192, source: 'app-icon.svg', file: join(repo, 'web', 'public', 'icon-192.png') },
+  { size: 180, source: 'app-icon.svg', file: join(repo, 'web', 'public', 'apple-touch-icon.png') },
 ];
 
 function findBrowser() {
@@ -98,8 +108,8 @@ function chunk(type, data) {
   return Buffer.concat([head, data, crc]);
 }
 
-/** Rewrites an 8-bit RGBA PNG as RGB (alpha thrown away; the art is opaque everywhere). */
-function stripAlphaInJs(file) {
+/** The pixels of an 8-bit RGBA PNG, unfiltered: 4 bytes per pixel, row after row. */
+function decodeRgba(file) {
   const png = readFileSync(file);
   const { width, height, bitDepth, colorType } = pngInfo(file);
   if (bitDepth !== 8 || colorType !== 6) throw new Error(`${file}: expected 8-bit RGBA, got depth ${bitDepth} type ${colorType}`);
@@ -128,6 +138,13 @@ function stripAlphaInJs(file) {
       rgba[y * stride + x] = (v + predictor) & 0xff;
     }
   }
+  return { png, width, height, rgba };
+}
+
+/** Rewrites an 8-bit RGBA PNG as RGB (alpha thrown away; the art is opaque everywhere). */
+function stripAlphaInJs(file) {
+  const { png, width, height, rgba } = decodeRgba(file);
+  const stride = width * 4;
   const rgb = Buffer.alloc(height * (width * 3 + 1));
   for (let y = 0; y < height; y++) {
     const row = y * (width * 3 + 1); // filter byte 0 (None) at the start of each row
@@ -162,17 +179,21 @@ function makeOpaque(file, ffmpeg) {
 
 const browser = findBrowser();
 const ffmpeg = hasFfmpeg();
-const work = mkdtempSync(join(tmpdir(), 'waxwing-icons-'));
+const work = mkdtempSync(join(tmpdir(), 'breadbox-icons-'));
 console.log(`Rendering with ${browser}`);
 
 try {
-  for (const { size, file } of OUTPUTS) {
-    const svg = source.replace(/width="\d+" height="\d+"/, `width="${size}" height="${size}"`);
-    const page = join(work, `icon-${size}.html`);
+  // Render and check everything first, then write into the repo, so a failure part-way never
+  // leaves a half-updated icon set behind.
+  const done = [];
+  for (const [n, { size, source, file, alpha }] of OUTPUTS.entries()) {
+    const svg = readFileSync(join(here, source), 'utf8')
+      .replace(/width="\d+" height="\d+"/, `width="${size}" height="${size}"`);
+    const page = join(work, `icon-${n}.html`);
     writeFileSync(page, `<!doctype html><html><head><meta charset="utf-8"><style>
-html,body{margin:0;padding:0;overflow:hidden;background:#3A1E36}svg{display:block}
+html,body{margin:0;padding:0;overflow:hidden;background:${alpha ? 'transparent' : '#F1E5D2'}}svg{display:block}
 </style></head><body>${svg}</body></html>`);
-    const shot = join(work, `icon-${size}.png`);
+    const shot = join(work, `icon-${n}.png`);
     execFileSync(browser, [
       '--headless=new',
       '--disable-gpu',
@@ -181,19 +202,37 @@ html,body{margin:0;padding:0;overflow:hidden;background:#3A1E36}svg{display:bloc
       '--no-default-browser-check',
       `--user-data-dir=${join(work, 'profile')}`,
       '--force-device-scale-factor=1',
+      ...(alpha ? ['--default-background-color=00000000'] : []),
       `--window-size=${size},${size}`,
       `--screenshot=${shot}`,
       pathToFileURL(page).href,
     ], { stdio: 'ignore', timeout: 60_000 });
-    if (!existsSync(shot)) throw new Error(`The browser wrote no screenshot for ${size}px`);
+    if (!existsSync(shot)) throw new Error(`The browser wrote no screenshot for ${source} at ${size}px`);
 
-    const { width, height } = pngInfo(shot);
-    if (width !== size || height !== size) throw new Error(`${size}px came out ${width}×${height}`);
-    const colour = makeOpaque(shot, ffmpeg);
+    const { width, height, colorType } = pngInfo(shot);
+    if (width !== size || height !== size) throw new Error(`${source} at ${size}px came out ${width}×${height}`);
+    let colour;
+    if (alpha) {
+      // The drawing leaves the corners empty, so a real transparent render has a clear corner.
+      // An opaque one (a browser that ignored --default-background-color) would ship a square.
+      if (colorType !== 6 || decodeRgba(shot).rgba[3] !== 0) {
+        throw new Error(`${source} needs a transparent background, but the browser rendered it opaque`);
+      }
+      colour = 'RGBA (transparent)';
+    } else {
+      colour = makeOpaque(shot, ffmpeg);
+    }
+    done.push({ shot, file, size, colour });
+  }
+
+  for (const { shot, file, size, colour } of done) {
     mkdirSync(dirname(file), { recursive: true });
     writeFileSync(file, readFileSync(shot));
     console.log(`${String(size).padStart(4)}  ${colour.padEnd(20)}  ${file}`);
   }
+  const favicon = join(repo, 'web', 'public', 'favicon.svg');
+  copyFileSync(join(here, 'favicon.svg'), favicon);
+  console.log(`      copied              ${favicon}`);
 } finally {
   rmSync(work, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
 }

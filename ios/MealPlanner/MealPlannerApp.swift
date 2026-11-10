@@ -432,7 +432,7 @@ struct RootView: View {
             }
         }
         // Something to say after signing in — an invite that no longer worked, say.
-        .alert("Waxwing", isPresented: Binding(
+        .alert("Breadbox", isPresented: Binding(
             get: { session.isSignedIn && session.notice != nil },
             set: { if !$0 { session.notice = nil } }
         )) {

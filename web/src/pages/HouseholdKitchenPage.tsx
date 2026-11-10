@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { ApiError } from '../api/client';
+import { APP_NAME } from '../brand';
 import { useHousehold, type KitchenChange } from '../household/HouseholdContext';
 import { usePushedScreen } from '../components/Layout';
 import NoHousehold from '../components/NoHousehold';
@@ -94,7 +95,7 @@ export default function HouseholdKitchenPage() {
           </SectionLabel>
           <MachineGrid selected={machines} onToggle={toggleMachine} roomy />
           <p className="px-1 pt-2.5 text-[0.8125rem] leading-snug text-muted">
-            Saved for your household. Waxwing only suggests recipes you can make with these, and Can make shows just
+            Saved for your household. {APP_NAME} only suggests recipes you can make with these, and Can make shows just
             those in a drawer or on Explore.
           </p>
         </section>

@@ -1,4 +1,4 @@
-# Waxwing for iOS
+# Breadbox for iOS
 
 A native client for the same backend the web app uses. No new API: it signs in with an email
 and password (or the older PIN flow), reads the plan, the groceries and the recipes, and ticks
@@ -30,7 +30,8 @@ cd ios && ./release.sh        # archive a Release build and upload it to App Sto
 ```
 
 The app is still "Gehan Meal Planner" in App Store Connect until it is renamed there by hand
-to "Waxwing" (App Information → Name; see BRAND.md); on the phone it is already Waxwing. The
+to "Breadbox", or "Breadbox: Family Recipes" if the plain name is refused (App Information →
+Name; see BRAND.md); on the phone it is already Breadbox. The
 bundle id stays cloud.gehan.mealplanner (team 5TCCXKJ243). The build number is the commit
 count, so every upload is higher than the last.
 The internal group "Family" has automatic distribution on: a build reaches everyone in it a few
@@ -395,12 +396,23 @@ still calls tags "recipe categories", so older phones keep working against the s
 
 ## The app icon and mark
 
-`AppIcon.appiconset/AppIcon.png` (1024, opaque RGB; Xcode makes the smaller sizes) is rendered
-from `web/scripts/brand/app-icon.svg` by `node web/scripts/brand/render-icons.mjs`, which writes
-the web's icons in the same run — don't edit the PNG by hand. The one-colour waxwing inside the
-app (`AppMark` on the sign-in screen, the share sheet's title) is `AppGlyph.imageset`, a template
-SVG copied from `web/scripts/brand/glyph.svg`. The share extension cannot see the app's asset
-catalog, so it carries its own copy in `ShareExtension/Assets.xcassets`; change both together.
+`AppIcon.appiconset` holds three 1024 PNGs, all rendered by `node web/scripts/brand/render-icons.mjs`
+(which writes the web's icons in the same run) — don't edit them by hand:
+
+- `AppIcon.png`: the icon, opaque RGB, from `web/scripts/brand/app-icon.svg`. It is also the
+  App Store icon, and Xcode makes the smaller sizes from it.
+- `AppIcon-Dark.png`: the Dark appearance (iOS 18 and later), from `app-icon-dark.svg`. It has no
+  tile and keeps its transparency, so iOS draws its own dark background behind the box.
+- `AppIcon-Tinted.png`: the Tinted appearance, a grayscale version on black from `app-icon-tinted.svg`.
+
+Apple now prefers a layered Icon Composer file (`AppIcon.icon`) for the iOS 26 glass look. It can
+only be made on a Mac; `web/scripts/brand/icon-layers/` has the layers ready (BRAND.md). Until then,
+iOS 26 applies its glass to these PNGs itself.
+
+The one-colour mark inside the app (`AppMark` on the sign-in screen, the share sheet's title) is
+`AppGlyph.imageset`, a template SVG copied from `web/scripts/brand/glyph.svg`, filled `#000000`.
+The share extension cannot see the app's asset catalog, so it carries its own copy in
+`ShareExtension/Assets.xcassets`; change both together.
 `ChefHat.imageset` stays: it is the recipe-photo placeholder, not the logo.
 
 ## Food icons

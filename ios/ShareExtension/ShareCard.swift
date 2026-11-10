@@ -44,7 +44,7 @@ struct ShareCard: View {
                     .foregroundStyle(Kitchen.accentInk)
                 Spacer()
                 HStack(spacing: 8) {
-                    // The app's waxwing, from this target's own asset catalog (the app's is not in it).
+                    // The app's mark, from this target's own asset catalog (the app's is not in it).
                     Image("AppGlyph")
                         .resizable()
                         .renderingMode(.template)
@@ -52,7 +52,7 @@ struct ShareCard: View {
                         .foregroundStyle(.white)
                         .frame(width: 26, height: 26)
                         .background(Kitchen.accent, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
-                    Text("Waxwing").font(.system(size: 17, weight: .semibold)).foregroundStyle(Kitchen.text)
+                    Text("Breadbox").font(.system(size: 17, weight: .semibold)).foregroundStyle(Kitchen.text)
                 }
                 Spacer()
                 Button("Save", action: onSave)
@@ -68,7 +68,7 @@ struct ShareCard: View {
                 Text(message).font(.system(size: 14)).foregroundStyle(Kitchen.muted)
             } else {
                 segmented
-                Text("You'll pick the household and drawer in Waxwing.")
+                Text("You'll pick the household and drawer in Breadbox.")
                     .font(.system(size: 13))
                     .foregroundStyle(Kitchen.muted)
             }

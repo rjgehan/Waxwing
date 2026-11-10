@@ -186,7 +186,7 @@ struct NewRecipeView: View {
                      "We give you a ready-made question for any chatbot. Paste its answer back.")
                 HStack(spacing: 12) {
                     Tile("square.and.arrow.up", tone: .herb, size: 36)
-                    Text("You can also share a page or TikTok straight into Waxwing from any app.")
+                    Text("You can also share a page or TikTok straight into Breadbox from any app.")
                         .font(.system(size: 13)).foregroundStyle(Palette.muted)
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }
@@ -553,7 +553,7 @@ struct FromALinkPage: View {
             // As typed: the server finds the link in a pasted share-sheet sentence and puts
             // https:// on "tiktok.com/…", the same for the phone and the web.
             let typed = link.trimmingCharacters(in: .whitespacesAndNewlines)
-            // Somebody's Waxwing link is the web app's page, which the importer would find
+            // Somebody's Breadbox link is the web app's page, which the importer would find
             // empty: it is saved as a copy, pictures and all, as the web page's Save does.
             if let onSaved, let token = SharedRecipeLink.token(in: typed) {
                 onSaved(try await SharedRecipeLink.save(token: token, household: household))

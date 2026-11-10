@@ -179,7 +179,7 @@ struct TutorialView: View {
                 VStack(spacing: 8) {
                     Text("Light or dark?").titleFont(28).foregroundStyle(Palette.text)
                         .accessibilityAddTraits(.isHeader)
-                    Text("Pick how Waxwing looks. You can change it any time in Settings.")
+                    Text("Pick how Breadbox looks. You can change it any time in Settings.")
                         .font(.system(size: 16))
                         .foregroundStyle(Palette.muted)
                         .fixedSize(horizontal: false, vertical: true)

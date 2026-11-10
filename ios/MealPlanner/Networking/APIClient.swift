@@ -883,7 +883,7 @@ actor APIClient {
                 return """
                 Cannot reach \(Config.baseURL). If the phone is on the same wifi, iOS is \
                 probably blocking local network access: Settings → Privacy & Security → \
-                Local Network → Waxwing.
+                Local Network → Breadbox.
                 """
             }
             return "Cannot reach \(Config.baseURL)."

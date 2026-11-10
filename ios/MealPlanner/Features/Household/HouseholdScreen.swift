@@ -330,7 +330,7 @@ struct HouseholdInviteCard: View {
                 HStack(spacing: 8) {
                     Group {
                         if let link {
-                            ShareLink(item: link, subject: Text("Join \(name) on Waxwing")) {
+                            ShareLink(item: link, subject: Text("Join \(name) on Breadbox")) {
                                 face("Share link", "square.and.arrow.up", fill: .white, ink: Palette.accentInk)
                             }
                         } else {
@@ -409,7 +409,7 @@ struct InviteQRSheet: View {
                         }
                     }
                     .padding(.vertical, 6)
-                    ShareLink(item: url, subject: Text("Join \(name) on Waxwing")) {
+                    ShareLink(item: url, subject: Text("Join \(name) on Breadbox")) {
                         Label("Share link", systemImage: "square.and.arrow.up")
                     }
                     .buttonStyle(.primary)
@@ -526,7 +526,7 @@ struct MemberSheet: View {
                              + (member.hasEmail == false ? " and add their email" : "")
                              + ", then signs them in. It works once, for 24 hours.")
                             .font(.system(size: 12)).foregroundStyle(Palette.muted)
-                        ShareLink(item: resetLink, subject: Text("Reset your Waxwing password")) {
+                        ShareLink(item: resetLink, subject: Text("Reset your Breadbox password")) {
                             Label("Send to \(member.shown)", systemImage: "paperplane")
                         }
                         .buttonStyle(.kitchen(.soft, size: .small, fill: true))

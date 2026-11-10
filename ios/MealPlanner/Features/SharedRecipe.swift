@@ -225,7 +225,7 @@ struct SharedRecipeView: View {
     private var status: String {
         if tidying { return "\(tidyProgress ?? "reading the video")…" }
         if busy { return "reading…" }
-        if copy != nil { return "shared from Waxwing" }
+        if copy != nil { return "shared from Breadbox" }
         if fromPage != nil {
             if methodWasSpoken { return "spoken in the video" }
             return SharedItemCard.isVideo(linkToKeep) ? "caption found" : "recipe found"
@@ -557,7 +557,7 @@ struct SharedRecipeView: View {
         error = nil
         saved = nil
         defer { busy = false }
-        note = "A recipe shared from Waxwing. Saving a copy…"
+        note = "A recipe shared from Breadbox. Saving a copy…"
         do {
             copy = try await SharedRecipeLink.save(token: token, household: household)
             note = nil

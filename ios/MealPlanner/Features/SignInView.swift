@@ -383,7 +383,7 @@ struct SignInView: View {
                 password = ""
             } else {
                 error = "You're not in a household yet. Ask someone for an invite link, then scan it below — "
-                    + "or start your own on the Waxwing website."
+                    + "or start your own on the Breadbox website."
             }
         } catch let failure as APIError where failure.lockoutSeconds != nil {
             // Too many tries: the locked state says so and counts down instead of an error.
