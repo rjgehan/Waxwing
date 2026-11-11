@@ -1,15 +1,16 @@
-<h1><picture><source media="(prefers-color-scheme: dark)" srcset="web/scripts/brand/logo/logo-horizontal-dark.svg"><img alt="Breadbox" src="web/scripts/brand/logo/logo-horizontal.svg" height="56"></picture></h1>
+<h1 align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="web/scripts/brand/logo/logo-horizontal-dark.svg"><img alt="Breadbox" src="web/scripts/brand/logo/logo-horizontal.svg" height="56"></picture></h1>
 
 <p align="center">
   <b>A family recipe box and one shared grocery list for the whole household.</b><br>
-  Native iPhone app and web app, one Spring Boot backend, self-hosted on a home server.
+  Native iPhone app and web app, one Spring Boot backend, self-hosted on a home server.<br>
+  <sub>Called Waxwing for a few weeks, and Meal Planner before that: the bundle id, packages, database and domain still say <code>mealplanner</code>. See <a href="BRAND.md">BRAND.md</a>.</sub>
 </p>
 
 <p align="center">
-  <a href="docs/media/waxwing-demo.mp4">
-    <img src="docs/media/waxwing-demo.gif" width="720" alt="Breadbox in 21 seconds: recipes in drawers and tags, a live shared grocery list, and receipt scanning">
+  <a href="docs/media/breadbox-demo.mp4">
+    <img src="docs/media/breadbox-demo.gif" width="720" alt="Breadbox in 22 seconds: pick a recipe, put it on a day, and the week becomes a grocery list that everyone in the house sees update live">
   </a><br>
-  <sub>21-second tour. Click it for the full video with sound.</sub>
+  <sub>22-second tour, every frame the real app. Click it for the full video with sound.</sub>
 </p>
 
 <p align="center">
