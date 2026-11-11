@@ -397,6 +397,11 @@ struct RootView: View {
             .throttle(for: .seconds(3), scheduler: RunLoop.main, latest: false)) { _ in
             Task { await session.loadHouseholds() }
         }
+        // A token the server will not take any more: every screen would open on nothing, so sign
+        // out and say why. A call that was already on its way when someone signed in again is ignored.
+        .onReceive(NotificationCenter.default.publisher(for: .sessionExpired).receive(on: RunLoop.main)) { note in
+            Task { await session.sessionExpired(rejected: note.object as? String) }
+        }
     }
 
     /**

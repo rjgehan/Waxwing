@@ -32,7 +32,6 @@ public class MealPlanController {
         return mealPlanService.listRange(householdId, userId, start, end);
     }
 
-    /** Adds one dish to a slot — call again to put sides alongside a main. */
     /** The last few days' meals this slot could be leftovers of, newest first. */
     @GetMapping("/leftovers")
     public List<MealPlanEntryResponse> leftoverChoices(@AuthenticationPrincipal UUID userId,
@@ -42,6 +41,7 @@ public class MealPlanController {
         return mealPlanService.leftoverChoices(householdId, userId, date, mealType);
     }
 
+    /** Adds one dish to a slot — call again to put sides alongside a main. */
     @PostMapping("/entries")
     public MealPlanEntryResponse add(@AuthenticationPrincipal UUID userId,
                                       @PathVariable UUID householdId,

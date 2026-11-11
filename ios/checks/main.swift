@@ -389,5 +389,9 @@ run { await receiptChecks() }
 
 unitPriceChecks()
 
+// MARK: - Renewing the sign-in token (TokenChecks.swift)
+
+tokenChecks()
+
 print("\(passed) passed, \(failures) failed")
 exit(failures == 0 ? 0 : 1)

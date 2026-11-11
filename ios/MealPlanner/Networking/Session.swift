@@ -139,6 +139,7 @@ final class Session {
     /// Loaded at launch and again after every sign-in: the list belongs to whoever is signed
     /// in, on whichever server they signed in to, and someone may have been added to a house.
     func loadHouseholds() async {
+        await refreshTokenIfOld()
         // A failed fetch is not news that you are in no household: keep what we had.
         guard let mine = try? await APIClient.shared.myHouseholds() else { return }
         households = mine
@@ -281,6 +282,27 @@ final class Session {
         // Joined on the way in (by email or by PIN): a house nobody has set up gets its kitchen questions.
         askKitchenSetupIfNeeded(for: joinedId)
         return true
+    }
+
+    /// Swaps the token for a fresh one once it is a day old, so someone who keeps using the app is
+    /// never signed out — the server's tokens last thirty days from when they are made. Offline or
+    /// a restarting server leaves the one they have: it still works, and the next launch tries again.
+    func refreshTokenIfOld() async {
+        guard let old = token, TokenAge.needsRefresh(old),
+              let auth = try? await APIClient.shared.refreshToken(),
+              token == old else { return }
+        token = auth.token
+        TokenStore.save(auth.token)
+        await APIClient.shared.use(token: auth.token)
+    }
+
+    /// The server turned the token down: it ran out, or the server's secret changed. Back to the
+    /// sign-in screen, saying so. `rejected` is the token the failed call carried, so a late answer
+    /// to a call from before someone signed in again does not sign them straight back out.
+    func sessionExpired(rejected: String?) async {
+        guard let current = token, current == rejected else { return }
+        await signOut()
+        notice = "You were signed out. Sign in again to carry on."
     }
 
     func signOut() async {

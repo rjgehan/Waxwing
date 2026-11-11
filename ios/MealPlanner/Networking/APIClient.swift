@@ -62,6 +62,9 @@ enum Config {
 extension Notification.Name {
     /// Posted when a household turns this person away — see APIClient.noticeForbidden.
     static let householdForbidden = Notification.Name("mp.householdForbidden")
+    /// Posted when the server refuses the sign-in token itself — see APIClient.noticeExpired.
+    /// The object is the token that was turned down.
+    static let sessionExpired = Notification.Name("mp.sessionExpired")
     /// Posted when a recipe is deleted, so the lists and the plan that showed it look again.
     static let recipesChanged = Notification.Name("mp.recipesChanged")
 }
@@ -163,6 +166,11 @@ actor APIClient {
 
     func me() async throws -> Me {
         try await get("/api/users/me")
+    }
+
+    /// A fresh token for whoever holds this one, while it still works.
+    func refreshToken() async throws -> AuthResponse {
+        try await send("POST", "/api/auth/refresh", body: [:])
     }
 
     /// Adds or changes how you sign in. Nil leaves that one as it is; the current password is
@@ -919,9 +927,24 @@ actor APIClient {
         let status = (response as? HTTPURLResponse)?.statusCode ?? 0
         guard (200..<300).contains(status) else {
             Self.noticeForbidden(status, req)
+            Self.noticeExpired(status, req)
             throw APIError(status: status, body: String(data: data, encoding: .utf8) ?? "")
         }
         return true
+    }
+
+    /**
+     A 401 on a call that carried the token means the token is no good any more — the server's
+     last thirty days, a restart with a new secret. Said out loud so the app can sign out and ask
+     for the PIN again, instead of opening on empty lists and a "PIN did not work" over each. The
+     sign-in calls are left out: a wrong PIN is also a 401. A renewal that is turned down is not.
+    */
+    nonisolated private static func noticeExpired(_ status: Int, _ req: URLRequest) {
+        guard status == 401, let header = req.value(forHTTPHeaderField: "Authorization"),
+              header.hasPrefix("Bearer ") else { return }
+        let path = req.url?.path ?? ""
+        if path.hasPrefix("/api/auth/") && path != "/api/auth/refresh" { return }
+        NotificationCenter.default.post(name: .sessionExpired, object: String(header.dropFirst("Bearer ".count)))
     }
 
     /**
@@ -956,6 +979,7 @@ actor APIClient {
         let status = (response as? HTTPURLResponse)?.statusCode ?? 0
         guard (200..<300).contains(status) else {
             Self.noticeForbidden(status, req)
+            Self.noticeExpired(status, req)
             throw APIError(status: status, body: String(data: data, encoding: .utf8) ?? "")
         }
         return try decoder.decode(T.self, from: data)
