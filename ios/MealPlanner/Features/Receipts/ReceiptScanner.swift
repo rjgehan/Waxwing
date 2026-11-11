@@ -82,7 +82,7 @@ struct ReceiptScanFlow: View {
 
     @ViewBuilder private var camera: some View {
         if cameraRefused {
-            failed("Waxwing isn't allowed to use the camera. Turn it on in Settings → Waxwing → Camera, then scan again.",
+            failed("Breadbox isn't allowed to use the camera. Turn it on in Settings → Breadbox → Camera, then scan again.",
                    settings: true)
         } else if ReceiptCamera.isSupported {
             ReceiptCamera(

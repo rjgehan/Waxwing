@@ -41,7 +41,7 @@ struct StorePicker: View {
             SearchBox(text: $query, prompt: "Search for a store")
                 .pageRow(bottom: 14)
             if locator.refused && sample == nil {
-                NoteBox("Location is off for Waxwing, so the stores aren't sorted by how near they are. Search by name, or turn it on in Settings → Waxwing → Location.",
+                NoteBox("Location is off for Breadbox, so the stores aren't sorted by how near they are. Search by name, or turn it on in Settings → Breadbox → Location.",
                         tone: .mustard, systemImage: "location.slash")
                     .pageRow(bottom: 14)
             }

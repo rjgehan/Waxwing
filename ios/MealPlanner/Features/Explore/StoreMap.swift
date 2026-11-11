@@ -221,7 +221,7 @@ struct StoreMapScreen: View {
         let priced = shops.filter { !$0.prices.isEmpty }
         return VStack(spacing: 10) {
             if locator.refused && sample == nil {
-                NoteBox("Turn on Location for Waxwing to see the stores near you. Settings → Waxwing → Location.",
+                NoteBox("Turn on Location for Breadbox to see the stores near you. Settings → Breadbox → Location.",
                         tone: .mustard, systemImage: "location.slash")
             }
             if let error {

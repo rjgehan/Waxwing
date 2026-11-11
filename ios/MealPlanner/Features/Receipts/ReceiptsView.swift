@@ -83,7 +83,7 @@ struct ReceiptsView: View {
         VStack(spacing: 12) {
             Tile("receipt", tone: .herb, size: 52)
             Text("No receipts yet").titleFont(20).foregroundStyle(Palette.text)
-            Text("After a shop, scan the receipt and Waxwing keeps what you paid for each thing — the grocery list shows it next time.")
+            Text("After a shop, scan the receipt and Breadbox keeps what you paid for each thing — the grocery list shows it next time.")
                 .font(.system(size: 14))
                 .foregroundStyle(Palette.muted)
                 .multilineTextAlignment(.center)
