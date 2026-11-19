@@ -42,6 +42,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.Instant;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -49,6 +50,7 @@ import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.Comparator;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
@@ -180,10 +182,13 @@ public class RecipeService {
      * Rewrites a recipe in place. Owner household only — a household you shared it with can file
      * it in their catalog but never change the recipe itself.
      *
-     * Ingredients are replaced wholesale rather than diffed: they have no identity worth
-     * preserving (no notes history, nothing references a row), and orphanRemoval cleans up the
-     * old ones. Photos are left alone unless the caller sends a list, because the recipe form
-     * does not manage the photo strip and would otherwise silently wipe it on every save.
+     * Ingredients are replaced wholesale rather than diffed, which keeps them in the order they
+     * were sent (the rows have no position of their own), and orphanRemoval cleans up the old
+     * ones. The one thing that points at a row is a planned meal's choice of optional extras,
+     * which is carried over to the new rows by ingredient — see {@link #carryChosenExtras}. That
+     * is what lets a whole new version be pasted over a recipe without its plans noticing.
+     * Photos are left alone unless the caller sends a list, because the recipe form does not
+     * manage the photo strip and would otherwise silently wipe it on every save.
      */
     @Transactional
     public RecipeResponse update(UUID recipeId, UUID requesterId, RecipeRequest request) {
@@ -191,6 +196,10 @@ public class RecipeService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Recipe not found"));
         UUID ownerId = recipe.getHousehold().getId();
         householdService.assertMember(ownerId, requesterId);
+        // Each old row's id and what it is, read before the rows go.
+        List<Map.Entry<UUID, UUID>> before = recipe.getIngredients().stream()
+                .map(row -> Map.entry(row.getId(), row.getIngredient().getId()))
+                .toList();
 
         recipe.setName(request.name());
         recipe.setDescription(request.description());
@@ -226,8 +235,45 @@ public class RecipeService {
                         .build()));
 
         Recipe saved = recipeRepository.save(recipe);
+        // The new rows have their ids once they are written.
+        recipeRepository.flush();
+        carryChosenExtras(recipeId, before, saved.getIngredients());
         RecipeFiling filing = upsertFiling(saved.getHousehold(), saved, request.section(), request.categories());
         return toResponse(saved, filing, ownerId);
+    }
+
+    /**
+     * A planned meal chose which of the recipe's optional extras to buy, by ingredient row. A save
+     * makes new rows, so each choice moves to the new row for the same ingredient (the same name
+     * as the ingredient catalogue matches names: ignoring case and the spaces around it). The same ingredient
+     * twice — parmesan in the sauce and on top — is paired up in order. A choice whose ingredient
+     * is no longer in the recipe is dropped. Every household that planned it is carried over, not
+     * just the owner: it is the same recipe on their plan.
+     *
+     * A row that was optional and now is not is bought regardless; one that is newly optional is
+     * not chosen for meals already planned, the same as planning it afresh with nothing ticked.
+     */
+    private void carryChosenExtras(UUID recipeId, List<Map.Entry<UUID, UUID>> before, List<RecipeIngredient> after) {
+        Map<UUID, ArrayDeque<UUID>> newRows = new HashMap<>();
+        after.forEach(row -> newRows.computeIfAbsent(row.getIngredient().getId(), k -> new ArrayDeque<>())
+                .add(row.getId()));
+        Map<UUID, UUID> moved = new HashMap<>();
+        for (Map.Entry<UUID, UUID> old : before) {
+            ArrayDeque<UUID> same = newRows.get(old.getValue());
+            if (same != null && !same.isEmpty()) {
+                moved.put(old.getKey(), same.poll());
+            }
+        }
+        for (MealPlanEntry entry : mealPlanEntryRepository.findByRecipeId(recipeId)) {
+            Set<UUID> chosen = entry.getIncludedOptionalIngredientIds();
+            if (chosen.isEmpty()) continue;
+            Set<UUID> carried = chosen.stream().map(moved::get).filter(Objects::nonNull)
+                    .collect(Collectors.toSet());
+            if (!carried.equals(chosen)) {
+                chosen.clear();
+                chosen.addAll(carried);
+            }
+        }
     }
 
     /** A household's own recipes plus every recipe any household has published globally. */

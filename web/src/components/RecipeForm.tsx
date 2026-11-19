@@ -51,6 +51,11 @@ export interface RecipeDraft {
  * fits on a phone screen instead of three. Filing and the machines it needs come last, as chips.
  *
  * `id` names the form, so a Save in the screen's top bar can submit it from outside.
+ *
+ * `recipe` and `draft` together are Replace from a paste: the draft's words — name, servings,
+ * times, description, ingredients, method — over the recipe, saved over the same one. Everything
+ * a paste does not say (the picture, the links, the filing, the machines) stays the recipe's, and
+ * an ingredient line keeps its leaf when the recipe had the same ingredient as optional.
  */
 export default function RecipeForm({
   id,
@@ -78,21 +83,27 @@ export default function RecipeForm({
   savedLinkId?: string;
   onSaved: (recipe: Recipe) => void;
 }) {
-  // `recipe` means "this already exists, save over it"; `draft` only seeds the fields.
+  // `recipe` means "this already exists, save over it"; `draft` only seeds the fields — the
+  // words, when both are given, with the rest kept from the recipe.
   const editing = recipe !== undefined;
-  const seed = recipe ?? draft;
+  const seed = draft ?? recipe;
+  const kept = recipe ?? draft;
   const [name, setName] = useState(seed?.name ?? '');
   const [servings, setServings] = useState<number | null>(seed?.servings ?? 4);
-  const [ingredients, setIngredients] = useState<DraftIngredient[]>(
-    seed?.ingredients.length
+  const [ingredients, setIngredients] = useState<DraftIngredient[]>(() => {
+    // A pasted line has no leaf of its own; it gets back the one its ingredient had. Matched the
+    // way the server matches ingredient names: ignoring case and the spaces around it.
+    const same = (name: string) => name.trim().toLowerCase();
+    const optional = new Set(recipe?.ingredients.filter((i) => i.optional).map((i) => same(i.ingredientName)));
+    return seed?.ingredients.length
       ? seed.ingredients.map((i) => ({
           ingredientName: i.ingredientName,
           quantity: i.quantity,
           unit: i.unit ?? '',
-          optional: 'optional' in i ? Boolean(i.optional) : false,
+          optional: 'optional' in i ? Boolean(i.optional) : optional.has(same(i.ingredientName)),
         }))
-      : [{ ...emptyIngredient }],
-  );
+      : [{ ...emptyIngredient }];
+  });
   // The row just added with Enter, so it can take the cursor.
   const [focusRow, setFocusRow] = useState<number | null>(null);
   const [instructions, setInstructions] = useState(seed?.instructions ?? '');
@@ -120,8 +131,8 @@ export default function RecipeForm({
   const [cook, setCook] = useState<number | null>(seed?.cookTimeMinutes ?? null);
   // An imported draft can bring the video's cover or the page's photo, already saved — it
   // stays the picture until somebody chooses their own.
-  const [coverImageId, setCoverImageId] = useState<string | null>(seed?.coverImageId ?? null);
-  const [links, setLinks] = useState<DraftLink[]>(() => toDraftLinks(seed?.links));
+  const [coverImageId, setCoverImageId] = useState<string | null>(kept?.coverImageId ?? null);
+  const [links, setLinks] = useState<DraftLink[]>(() => toDraftLinks(kept?.links));
 
   // The machines it needs. A recipe already saved starts with what it has (spotted from its
   // method, or picked before); a new one starts empty, and the server spots them when it is saved.

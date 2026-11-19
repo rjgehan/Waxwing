@@ -3,7 +3,7 @@ import type { Recipe, RecipeSection } from '../api/types';
 import RecipeForm, { type RecipeDraft } from './RecipeForm';
 import { Button, cx, ErrorText, Input, NoteBox, StepNumber, Textarea } from './ui';
 import { ServingsStepper } from './plan/PlanBits';
-import { buildRecipePrompt, parseRecipeText, RecipeParseError } from '../utils/recipeParser';
+import { buildRecipePrompt, buildRevisionPrompt, parseRecipeText, RecipeParseError } from '../utils/recipeParser';
 
 /**
  * The AI round trip (the mockup's 3.15), as three numbered steps: copy a question, ask whichever
@@ -13,11 +13,15 @@ import { buildRecipePrompt, parseRecipeText, RecipeParseError } from '../utils/r
  * The reader is rules, not a model, so it needs the layout the question asks for; the box says
  * so up front rather than after a paste of a whole web page has failed. What it reads goes into
  * the ordinary form to be checked, not straight into the catalog.
+ *
+ * With `revising` it is Replace from a paste, on Edit recipe: step 1 copies the recipe as it is
+ * now, in the same layout, to hand to the AI with what to change; the answer is read the same way.
  */
 export function PasteFromAi({
   householdId,
   initialName = '',
   initialServings = 4,
+  revising,
   section,
   tags,
   onLink,
@@ -27,6 +31,8 @@ export function PasteFromAi({
   householdId: string;
   initialName?: string;
   initialServings?: number;
+  /** The saved recipe a new version is being pasted over. */
+  revising?: Recipe;
   /** Where the finished recipe is filed to begin with. */
   section?: RecipeSection;
   /** Tags the recipe starts with — see RecipeForm. */
@@ -44,7 +50,7 @@ export function PasteFromAi({
   const [error, setError] = useState<string | null>(null);
   const [draft, setDraft] = useState<RecipeDraft | null>(null);
 
-  const prompt = buildRecipePrompt(dish.trim(), servings);
+  const prompt = revising ? buildRevisionPrompt(revising) : buildRecipePrompt(dish.trim(), servings);
 
   /** The clipboard is refused on a plain-http address, so there is a fallback to copy by hand. */
   async function copyPrompt() {
@@ -64,13 +70,15 @@ export function PasteFromAi({
     const pasted = text.trim();
     if (/^https?:\/\/\S+$/i.test(pasted)) {
       if (onLink) onLink(pasted);
+      else if (revising) setError('That’s a link, not a recipe — paste the recipe’s text.');
       else setError('That’s a link — use From a link to read it.');
       return;
     }
     try {
       // The amounts are for the servings the paste itself says — the question's, if it was
-      // copied, or the AI's own if it was asked another way. The stepper only fills a gap.
-      const read = parseRecipeText(text, servings);
+      // copied, or the AI's own if it was asked another way. The stepper only fills a gap, and
+      // a new version that never says keeps the recipe's own.
+      const read = parseRecipeText(text, revising?.servings ?? servings);
       if (onDraft) onDraft(read);
       else setDraft(read);
     } catch (err) {
@@ -94,36 +102,50 @@ export function PasteFromAi({
 
   return (
     <form onSubmit={read} className="flex flex-col gap-4">
-      <Step n={1} title="Copy this question">
-        <div className="flex items-center gap-2">
-          <Input
-            value={dish}
-            onChange={(e) => setDish(e.target.value)}
-            placeholder="Dish (optional)"
-            aria-label="What do you want to make?"
-            className="h-10 min-w-0 flex-1 text-[0.9375rem]"
-          />
-          <ServingsStepper value={servings} onChange={setServings} label />
-        </div>
+      <Step n={1} title={revising ? 'Copy the recipe as it is' : 'Copy this question'}>
+        {!revising && (
+          <div className="flex items-center gap-2">
+            <Input
+              value={dish}
+              onChange={(e) => setDish(e.target.value)}
+              placeholder="Dish (optional)"
+              aria-label="What do you want to make?"
+              className="h-10 min-w-0 flex-1 text-[0.9375rem]"
+            />
+            <ServingsStepper value={servings} onChange={setServings} label />
+          </div>
+        )}
         {/* A glimpse of the question, run together; Copy takes it whole, line breaks and all. */}
         <p
-          aria-label="The question"
+          aria-label={revising ? 'The recipe as it is' : 'The question'}
           className="rounded-[14px] bg-surface2 p-3 font-mono text-[0.8125rem] leading-normal text-muted"
         >
           <span className="line-clamp-5">{prompt.replace(/\s*\n+\s*/g, ' ')}</span>
         </p>
         <Button type="button" variant="soft" size="sm" icon={copied === 'yes' ? 'check' : 'copy'} className="h-11" onClick={copyPrompt}>
-          {copied === 'yes' ? 'Copied' : 'Copy question'}
+          {copied === 'yes' ? 'Copied' : revising ? 'Copy recipe' : 'Copy question'}
         </Button>
         {copied === 'failed' && (
           <div className="space-y-1">
             <p className="text-sm text-muted">Couldn’t copy it on this connection — select the text and copy it yourself.</p>
-            <Textarea readOnly rows={6} value={prompt} onFocus={(e) => e.target.select()} aria-label="The question to copy" />
+            <Textarea
+              readOnly
+              rows={6}
+              value={prompt}
+              onFocus={(e) => e.target.select()}
+              aria-label={revising ? 'The recipe to copy' : 'The question to copy'}
+            />
           </div>
         )}
       </Step>
 
-      <Step n={2} title="Ask an AI — any chatbot you use" />
+      {revising ? (
+        <Step n={2} title="Ask an AI to change it">
+          <p className="text-sm text-muted">Paste it into any chatbot and say what to change after “What to change:”.</p>
+        </Step>
+      ) : (
+        <Step n={2} title="Ask an AI — any chatbot you use" />
+      )}
 
       <Step n={3} title="Paste the answer">
         <Textarea
@@ -134,7 +156,7 @@ export function PasteFromAi({
           aria-label="The recipe to read"
           className="rounded-card text-[0.9375rem]"
         />
-        <FormatWarning />
+        <FormatWarning link={!revising} />
       </Step>
 
       {error && <ErrorText>{error}</ErrorText>}
@@ -163,14 +185,15 @@ function Step({ n, title, children }: { n: number; title: string; children?: Rea
  * What `parseRecipeText` really needs, said before the paste rather than after it fails: a name
  * at the top, an "Ingredients" heading on a line of its own, and the steps under an
  * "Instructions" (or Method, Steps, Directions) heading. Bullets, numbering and bold are fine.
+ * `link`: there is a From a link to send a recipe website to (not on Edit recipe).
  */
-function FormatWarning() {
+function FormatWarning({ link = true }: { link?: boolean }) {
   return (
     <div role="note">
       <NoteBox tone="mustard" icon="alert">
         <b className="font-semibold">You can’t paste just anything here.</b> It reads a recipe laid out the way the
         question asks: the name at the top, a line saying “Ingredients” with one per line under it, then “Instructions”
-        with the steps. For a recipe website, use From a link.
+        with the steps.{link && ' For a recipe website, use From a link.'}
       </NoteBox>
     </div>
   );

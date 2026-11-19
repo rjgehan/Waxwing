@@ -45,6 +45,8 @@ Uses the Chrome already installed (`channel: 'chrome'`), so there's no Playwrigh
 | `tests/ui/features-off.spec.ts` | Plan and Cupboard turned off: tabs, redirects, Done shopping with no cupboard, Kitchen & features, no flash of the tabs before the household list arrives |
 | `tests/ui/machines.spec.ts` | The machines a recipe needs, in the form: starting from the recipe's, sent only when changed |
 | `tests/api/recipe-groceries.spec.ts` | A recipe straight onto the list: scaling, optional extras, "some", attribution, already on the list |
+| `tests/api/recipe-replace.spec.ts` | A new version saved over a recipe: same id, plans, shares, public link, tags and photos kept; planned meals' optional extras carried over by name; groceries settling up when the meal is added again |
+| `tests/ui/replace-from-paste.spec.ts` | Replace from a paste on Edit recipe: the recipe copied out in the paste layout, the answer read into Check recipe with the recipe's picture, links and leaves kept, Cancel and Back keeping what was there, saved over the same recipe |
 | `tests/ui/add-to-groceries.spec.ts` | Add to groceries on a recipe: the labelled cart beside Add to plan, the servings shown, extras, asking before adding again, the filled button with the Plan off |
 | `tests/api/ideas.spec.ts` | The beta's ideas board: one vote each, Top and New, author-only edits, admin-only status, limits, deleted accounts |
 | `tests/ui/ideas.spec.ts` | Suggesting from the header's lightbulb, upvoting from a second phone, Top vs New, the admin marking one planned |

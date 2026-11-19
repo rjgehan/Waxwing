@@ -1,5 +1,7 @@
 import type { RecipeDraft } from '../components/RecipeForm';
+import type { Recipe } from '../api/types';
 import { parseQuantity, splitAmount } from './amount';
+import { formatQuantity, instructionSteps } from './recipeFormat';
 
 export class RecipeParseError extends Error {}
 
@@ -25,6 +27,45 @@ Instructions:
 1. <step>
 
 Amounts are for ${servings} people, written the way a person would — "1 | | egg", never "0.125 | | egg". Leave the unit empty for things you count, but keep both "|".${dish ? '' : '\n\nRecipe: '}`;
+}
+
+/**
+ * A saved recipe written out in the layout the paste reader takes, with a line asking for the
+ * new version in the same layout — Replace from a paste's step 1. Pasted into a chat with what
+ * to change after "What to change:", the answer comes back readable, and reading it gives the
+ * same recipe for every line the AI left alone. Web only for now; the phone has no Replace.
+ *
+ * A line with no amount ("salt and pepper") is written with its amount empty, which reads back
+ * as none. Optional isn't written: the check page gives a line back its leaf by name.
+ */
+export function buildRevisionPrompt(recipe: Recipe): string {
+  const head = [
+    `Name: ${recipe.name}`,
+    `Servings: ${recipe.servings}`,
+    recipe.prepTimeMinutes ? `Prep Time: ${recipe.prepTimeMinutes}` : null,
+    recipe.cookTimeMinutes ? `Cook Time: ${recipe.cookTimeMinutes}` : null,
+    recipe.description?.trim() ? `Description: ${recipe.description.trim()}` : null,
+  ].filter(Boolean);
+  const ingredients = recipe.ingredients.map(
+    (i) => `- ${i.quantity === null ? '' : writtenAmount(i.quantity)} | ${i.unit ?? ''} | ${i.ingredientName}`.replace(/ {2,}/g, ' '),
+  );
+  const steps = instructionSteps(recipe.instructions).map((step, n) => `${n + 1}. ${step}`);
+  return `Here's a recipe I'd like to change. Answer with the whole new version in exactly this format: the same headings, one "<quantity> | <unit> | <ingredient name>" line per ingredient, and numbered steps. Leave the unit empty for things you count, but keep both "|". Amounts are for the number on the Servings line.
+
+${head.join('\n')}
+Ingredients:
+${ingredients.join('\n')}
+Instructions:
+${steps.join('\n')}
+
+What to change: `;
+}
+
+/** "½" and "1¼" when that is exactly the amount, otherwise the number as saved — never rounded. */
+function writtenAmount(value: number): string {
+  const glyph = formatQuantity(value);
+  const back = parseQuantity(glyph);
+  return back !== null && Math.abs(back - value) < 0.0005 ? glyph : String(value);
 }
 
 const HEADERS: Record<string, 'name' | 'description' | 'prep' | 'cook' | 'servings'> = {
@@ -147,7 +188,8 @@ export function parseRecipeText(raw: string, fallbackServings = 4): RecipeDraft 
 function readIngredient(item: string): RecipeDraft['ingredients'][number] {
   if (item.includes('|')) {
     const parts = item.split('|').map((p) => p.trim());
-    const quantity = parseQuantity(parts[0]);
+    // An empty amount — "| | salt and pepper" — is none, not 0 (as the phone reads it too).
+    const quantity = parts[0] ? parseQuantity(parts[0]) : null;
     // "qty | unit | name", or "qty | name" with the unit left out altogether.
     const [unit, name] = parts.length >= 3 ? [parts[1], parts.slice(2).join(' ')] : ['', parts[1] ?? ''];
     if (name) return { ingredientName: name, quantity, unit };
